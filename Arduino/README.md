@@ -1,4 +1,4 @@
-# Arduino Code that interfaces with Matlab goes here
+# Arduino code that interfaces with Matlab goes here
 
 Includes:
 
