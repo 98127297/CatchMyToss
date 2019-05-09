@@ -1,6 +1,6 @@
 %Sheffield Dong, 98127297, 7/5/19
 %41014 Robotics, Assignment 2
-
+% NOTE: Arduino support from MATLAB addon is required for this to work
 %% Servo Specs: MG996R, default settings
 % Note: writePosition uses a value between 0 < theta < 1 for angle.
 % theta approaching 1 moves servo CCW, theta approaching 0 moves servo CW
