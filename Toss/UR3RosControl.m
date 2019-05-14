@@ -46,7 +46,7 @@ classdef UR3RosControl
         end
         
         %% Move_Ur3
-        function result = Move_Ur3(self, joint_angles)
+        function result = Ur3_Move(self, joint_angles)
             
             % check if joint_angles has 1 row 6 col
             if size(joint_angles, 1) == 1 && size(joint_angles,2) == 6
@@ -73,12 +73,12 @@ classdef UR3RosControl
         end
         
         %% call ur3_throw service
-        function result = ThrowTrajectoryUr3(self, input)
+        function result = Ur3_Throw(self, input)
             
             if self.enable_throwing || input == true || input == false
                 reqMsg = rosmessage(self.throwing_client);
                 reqMsg.Throw = input;
-                result = call(self.throwing_client,reqMsg,'Timeout',5);
+                result = call(self.throwing_client,reqMsg,'Timeout',20);
             else
                 result = false;   
             end
