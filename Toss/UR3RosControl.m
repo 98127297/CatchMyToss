@@ -50,9 +50,9 @@ classdef UR3RosControl
             
             % check if joint_angles has 1 row 6 col
             if size(joint_angles, 1) == 1 && size(joint_angles,2) == 6
-                current_q = receive(self.joint_state_sub, 1)
-                current_q_pos = current_q.Position'
-                current_q_vel = current_q.Velocity'
+                current_q = receive(self.joint_state_sub, 1);
+                current_q_pos = current_q.Position';
+                current_q_vel = current_q.Velocity';
 
                 self.joint_trajectory_current.Positions = current_q_pos;
                 self.joint_trajectory_current.Velocities = current_q_vel;
@@ -82,6 +82,12 @@ classdef UR3RosControl
             else
                 result = false;   
             end
+        end
+        
+        %% get joint angle
+        function q = GetJointAngle(self)
+            joint_state = receive(self.joint_state_sub, 1); 
+            q = joint_state.Position';
         end
     end
 end
