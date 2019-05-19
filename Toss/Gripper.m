@@ -1,6 +1,6 @@
 %Sheffield Dong, 98127297, 7/5/19
 %41014 Robotics, Assignment 2
-
+% NOTE: Arduino support from MATLAB addon is required for this to work
 %% Servo Specs: MG996R, default settings
 % Note: writePosition uses a value between 0 < theta < 1 for angle.
 % theta approaching 1 moves servo CCW, theta approaching 0 moves servo CW
@@ -31,13 +31,13 @@ classdef Gripper < handle
             writePosition(self.servo,0.45);
         end
         function Open(self)
-            writePosition(self.servo,0);
+            writePosition(self.servo,0.1);
         end
         function Ready(self)
             writePosition(self.servo,0.15);
         end
         function Hold(self)
-            writePosition(self.servo,0.1);
+            writePosition(self.servo,0.3);
         end
         function Release(self)
             writePosition(self.servo,0.2);

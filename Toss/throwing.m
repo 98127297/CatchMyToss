@@ -19,7 +19,7 @@ goal_1 = transl(0.3, 0, 0.2);
 orien_1 = troty(180,'deg')*trotz(-90,'deg');
 %ur3.GoToPose(goal_1, orien_1,true)
 q_matrix_1 = ur3.GoToPose(goal_1, orien_1,false);
-goal_q_1 = q_matrix_1(end,:)
+goal_q_1 = q_matrix_1(end,:);
 
 roscontrol.Ur3_Move(goal_q_1);
 
@@ -31,12 +31,12 @@ goal_2 = transl(0.3, 0, 0.025);
 orien_2 = troty(180,'deg')*trotz(-90,'deg');
 %ur3.GoToPose(goal_2, orien_2,true)
 q_matrix_2 = ur3.GoToPose(goal_2, orien_2,false);
-goal_q_2 = q_matrix_2(end,:)
+goal_q_2 = q_matrix_2(end,:);
 
 roscontrol.Ur3_Move(goal_q_2);
 pause(1)
 % Close gripper
-gripper.Ready();
+gripper.Hold();
 pause(1)
 % Go to start throwing pos
 throw_q = deg2rad([90 -145 -80 -100 90 0]);
@@ -49,9 +49,9 @@ i = 1;
 q_test = {};
 
 while true
-    q = roscontrol.GetJointAngle()
+    q = roscontrol.GetJointAngle();
     
-    if q(1,3) > -1.100   %-0.5539
+    if q(1,3) > -1.2   %-1.1
         % release the gripper
         gripper.Open();
         break
