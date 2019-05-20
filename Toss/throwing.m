@@ -2,17 +2,19 @@
 
 %% Robotics Assignment 2 Throwing test
 
+clear all
+
 roscontrol = UR3RosControl(true);
 
-ur3 = UR3('UR3', transl(0,0,0), [-1 1 -1 1 -1 1])
-ur3.model.tool = transl(0,0,0.12)
+ur3 = UR3('UR3', transl(0,0,0), [-1 1 -1 1 -1 1]);
+ur3.model.tool = transl(0,0,0.12);
 
 arduino = arduino();
 gripper = Gripper(arduino, 'D6');
 
 ur3.PlotAndColourRobot()
 
-%% control
+%% control normal throw
 
 % Go to somewhere above the ball
 goal_1 = transl(0.3, 0, 0.2);
@@ -39,24 +41,24 @@ pause(1)
 gripper.Hold();
 pause(1)
 % Go to start throwing pos
-throw_q = deg2rad([90 -145 -80 -100 90 0]);
+%[90 -145 -80 -100 90 0]
+throw_q = deg2rad([90 -110 110 -80 -90 0]);
 roscontrol.Ur3_Move(throw_q);
 
 % Call the throw service
 roscontrol.Ur3_Throw(true)
 
 i = 1;
-q_test = {};
 
 while true
+    
     q = roscontrol.GetJointAngle();
     
-    if q(1,3) > -1.2   %-1.1
+    if q(1,4) < -1.9   
         % release the gripper
-        gripper.Open();
+        gripper.Release();
         break
     end
-    
     
     i = i + 1;
     if i > 300
@@ -64,6 +66,7 @@ while true
     end
 end
 
+%q_test = {};
 % while true
 %     q_test{i} = roscontrol.GetJointAngle();
 %     
@@ -72,5 +75,47 @@ end
 %         break
 %     end
 % end
+
+%% Contorl back hand testing
+
+gripper.Close()
+
+throw_q = deg2rad([90 -110 110 -80 -90 0]);
+roscontrol.Ur3_Move(throw_q);
+
+pause(2)
+roscontrol.Ur3_Throw(true)
+
+i = 1;
+
+while true
+    q = roscontrol.GetJointAngle();
+    
+    if q(1,4) < -1.9   
+        % release the gripper
+        gripper.Release();
+        break
+    end
+    
+    i = i + 1;
+    if i > 300
+        break
+    end
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

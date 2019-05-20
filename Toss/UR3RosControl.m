@@ -88,7 +88,7 @@ classdef UR3RosControl
         function q = GetJointAngle(self)
             joint_state = receive(self.joint_state_sub, 1); 
             q = joint_state.Position';
-        end
+        end        
     end
 end
 
