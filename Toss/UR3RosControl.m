@@ -76,9 +76,9 @@ classdef UR3RosControl
         function result = Ur3_Throw(self, input)
             
             if self.enable_throwing || input == true || input == false
-                reqMsg = rosmessage(self.throwing_client);
-                reqMsg.Throw = input;
-                result = call(self.throwing_client,reqMsg,'Timeout',20);
+                %reqMsg = rosmessage(self.throwing_client)
+                %reqMsg.Throw = input;
+                call(self.throwing_client,'Timeout',0.1);
             else
                 result = false;   
             end

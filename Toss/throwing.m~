@@ -56,7 +56,7 @@ while true
     
     q = roscontrol.GetJointAngle()
     
-    if q(1,4) < -2.17  %2.17
+    if q(1,4) < -2.17  %2.15
         % release the gripper
         gripper.Release();
         break
