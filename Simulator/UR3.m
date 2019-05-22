@@ -65,10 +65,10 @@ classdef UR3 < handle
                 [ faceData, vertexData, plyData{self.model.n + 1} ] = plyread(self.toolModelFilename,'tri'); 
                 self.model.faces{self.model.n + 1} = faceData;
                 self.model.points{self.model.n + 1} = vertexData;
-                toolParameters = load(self.toolParametersFilename);
-                self.model.tool = toolParameters.tool;
-                self.model.qlim = toolParameters.qlim;
-                warning('Please check the joint limits. They may be unsafe')
+%                 toolParameters = load(self.toolParametersFilename);
+%                 self.model.tool = toolParameters.tool;
+%                 self.model.qlim = toolParameters.qlim;
+%                 warning('Please check the joint limits. They may be unsafe')
             end
             % Display robot
             self.model.plot3d(zeros(1,self.model.n),'noarrow','workspace',self.workspace);

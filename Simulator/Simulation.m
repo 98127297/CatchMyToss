@@ -12,8 +12,8 @@ throwerBase = transl(0,0,0);
 
 
 % Joint Positions for Throwing
-qStart = deg2rad([90,-135,-70,-100,-90,0]);
-qEnd = deg2rad([90,-100,-70,-100,-90,0]);
+qStart = deg2rad([90,-110,110,-80,-90,0]);
+qEnd = deg2rad([90,-110,-20,-170,-90,0]);
 
 % Joint Position for Catching
 qCatch = deg2rad([0,-45,90,-45,90,0]);
@@ -45,16 +45,28 @@ thrower = UR3();
 
 %% Throwing
 thrower.model.base = transl(0,0,0.966);
+thrower.toolModelFilename = ['gripper.ply']
 thrower.PlotAndColourRobot();
 thrower.model.animate(qStart);
+tr = thrower.model.fkine(qStart);
+axis equal
+hold on;
+
+%%
 
 catcher.model.base = transl(0,1.2,0)*trotz(pi);
+catcher.toolModelFilename = ['box.ply'];
 catcher.PlotAndColourRobot();
 catcher.model.animate(qStart);
-axis equal;
- 
+tc = catcher.model.fkine(qStart);
+
+bench_h = GetandMovePart('bench.ply',transl(0,0,0.5));
 pause();
 
+
+
+
+%%
 qMatrix = mtraj(@lspb,qStart,qEnd,steps);
 q = qMatrix(steps/2,:);
 qT = thrower.model.fkine(q);
@@ -64,13 +76,14 @@ Z = qT(3,4)
 [y,z] = Projectile(Z,steps)
 
 x = zeros(1,steps+1);
-for i = 1:steps+1
+for i = 1:steps+1 
     x(i) = X;
 end
 
 y = y+Y;
 ball = [x' y' z'];
 count = 1;
+enable = 0;
 
 % Plotting the simulation
 for t = 1:2*steps
@@ -79,8 +92,8 @@ for t = 1:2*steps
         thrower.model.animate(qMatrix(t,:));
     end
     
-    if t == steps % plotting the catcher
-        newQ = catcher.model.ikcon(transl(ball(steps/2,1),ball(steps/2,2),0.5));
+    if t >= steps % plotting the catcher
+        newQ = catcher.model.ikcon(transl(ball(count-1,1),ball(count-1,2),0.5));
         catcher.model.animate(newQ);
     end
     
@@ -89,8 +102,14 @@ for t = 1:2*steps
         ball_h = GetandMovePart('ball.ply',transl(ball(count,1),ball(count,2),ball(count,3)));
         drawnow()
         count = count+1;
-        
+        enable = 1;
     end 
+    if mod(count,5) == 0
+        ball_p = plot3(ball(count,1),ball(count,2),ball(count,3), 'ro');
+        drawnow()
+    end
+        
+ 
 end
 
 
