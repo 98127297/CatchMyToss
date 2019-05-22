@@ -45,6 +45,8 @@ pause(1)
 throw_q = deg2rad([90 -110 110 -80 -90 0]);
 roscontrol.Ur3_Move(throw_q);
 
+pause(1)
+
 % Call the throw service
 try
     roscontrol.Ur3_Throw(true);
@@ -56,7 +58,7 @@ while true
     
     q = roscontrol.GetJointAngle()
     
-    if q(1,4) < -2.17  %2.17
+    if q(1,4) < -2.68  %2.17
         % release the gripper
         gripper.Release();
         break
@@ -80,32 +82,32 @@ end
 
 %% Contorl back hand testing
 
-%gripper.Close()
-
-throw_q = deg2rad([90 -110 110 -80 -90 0]);
-roscontrol.Ur3_Move(throw_q);
-
-pause(2)
-try
-    roscontrol.Ur3_Throw(true);
-end
-
-i = 1;
-
-while true
-    q = roscontrol.GetJointAngle()
-    
-    if q(1,4) < -2.25   
-        % release the gripper
-        %gripper.Release();
-        break
-    end
-    
+% %gripper.Close()
+% 
+% throw_q = deg2rad([90 -150 110 -80 -90 0]);
+% roscontrol.Ur3_Move(throw_q);
+% 
+% pause(2)
+% try
+%     roscontrol.Ur3_Throw(true);
+% end
+% 
+% i = 1;
+% 
+% while true
+%     q = roscontrol.GetJointAngle()
+%     
+%     if q(1,4) < -2.25   
+%         % release the gripper
+%         %gripper.Release();
+%         %break
+%     end
+%     
 %     i = i + 1;
 %     if i > 300
 %         break
 %     end
-end
+% end
 
 
 
