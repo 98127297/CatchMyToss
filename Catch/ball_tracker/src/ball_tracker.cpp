@@ -19,7 +19,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 static const std::string IMAGE_WINDOW = "Image window";
-static const std::string PROCESSED_WINDOW = "Processed";
+static const std::string HOUGH_WINDOW = "Hough window";
 static const std::string DEPTH_WINDOW = "Depth window";
 static const uint16_t MAX_KINECT_RANGE = 10000;
 static const uint QUEUE_SIZE = 10;
@@ -85,21 +85,16 @@ class ImageConverter
   //Mask for background subtractor
   cv::Mat mask;
 
+  //Keeps track of messages sent out
+  unsigned int counter;
 
 public:
   ImageConverter()
       : it_(nh_), hsvMin(cv::Scalar(12,74,222)), hsvMax(cv::Scalar(38,255,255)),
         dilateElement(cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3))), erodeElement(cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3))),
-        gaussianKernel(cv::Size(9,9)), subtractor(cv::createBackgroundSubtractorMOG2())
+        gaussianKernel(cv::Size(9,9)), subtractor(cv::createBackgroundSubtractorMOG2()), counter(0)
   {
-      //SUBSCRIBERS
-      // Subscrive to input video feed and publish output video feed
-      //    image_sub_ = it_.subscribe("/kinect2/hd/image_color_rect", 1,
-      //      &ImageConverter::imageCb, this);
-
-      //    depth_sub_ = it_.subscribe("/kinect2/hd/image_depth_rect", 1,
-      //      &ImageConverter::depthCb, this);
-
+      ROS_INFO("Beginning Tracking");
       //SYNCHRONISING [MAIN SUBSCIRBER]
       colorMsg.subscribe(nh_,"/kinect2/hd/image_color_rect",1);
       depthMsg.subscribe(nh_,"/kinect2/hd/image_depth_rect",1);
@@ -114,26 +109,28 @@ public:
       //Publish the XYZ coordinates from camera + header
       ball_xyz_ = nh_.advertise<geometry_msgs::PointStamped>("/ball_XYZ", 1);
 
-      //    image_pub_ = it_.advertise("/image_converter/output_image", 1);
-
-      //    depth_pub_ = it_.advertise("/depth_converter/output_depth",1);
-
-      cv::namedWindow(IMAGE_WINDOW);
-      //    cv::namedWindow(PROCESSED_WINDOW);
-      cv::namedWindow(DEPTH_WINDOW);
+      //Debug windows
+//      cv::namedWindow(IMAGE_WINDOW, cv::WINDOW_NORMAL);
+//      cv::resizeWindow(IMAGE_WINDOW,1920,1080);
+//      cv::namedWindow(DEPTH_WINDOW, cv::WINDOW_NORMAL);
+//      cv::resizeWindow(DEPTH_WINDOW,1920,1080);
+//      cv::namedWindow(HOUGH_WINDOW, cv::WINDOW_NORMAL);
+//      cv::resizeWindow(HOUGH_WINDOW,1920,1080);
   }
 
   ~ImageConverter()
   {
-      cv::destroyWindow(IMAGE_WINDOW);
-      cv::destroyWindow(DEPTH_WINDOW);
-      //    cv::destroyWindow(PROCESSED_WINDOW);
+      //DEBUG, uncomment required windows when you need them
+      //      cv::destroyWindow(IMAGE_WINDOW);
+      //      cv::destroyWindow(DEPTH_WINDOW);
+//          cv::destroyWindow(HOUGH_WINDOW);
   }
 
   //Only perform this call back when synchronisation is successful
   void SyncCallBack(const sensor_msgs::ImageConstPtr& colorMsg, const sensor_msgs::ImageConstPtr& depthMsg)
   {
-      //    ROS_INFO("Synchronization successful");
+      ROS_INFO("Topics matched, ID: %u",counter);
+      counter++;
       //Grab our images from messages
       cv_bridge::CvImagePtr cv_color_ptr;
       cv_bridge::CvImagePtr cv_depth_ptr;
@@ -156,159 +153,23 @@ public:
       ballMsg.point.z = XYZ.z;
       ballMsg.header = cv_depth_ptr->header;
       ball_xyz_.publish(ballMsg);
-      imageCircle = cv_color_ptr->image;
-      cv::circle( imageCircle, ball, 3, cv::Scalar(0,255,0), -1, 8, 0 );
 
-
-      //      cv::imshow(IMAGE_WINDOW, cv_color_ptr->image);
-      cv::imshow(IMAGE_WINDOW, imageCircle);
-      cv::imshow(DEPTH_WINDOW, cv_depth_ptr->image);
-      cv::waitKey(3);
+      //DEBUG
+//      imageCircle = cv_color_ptr->image;
+////      Ball centre point
+//      cv::circle(imageCircle, ball, 3, cv::Scalar(0,255,0), -1, 8, 0 );
+////      Principal Point
+//      cv::circle(imageCircle, cv::Point(cvRound(PRINCIPAL_POINT_X),cvRound(PRINCIPAL_POINT_Y)), 3, cv::Scalar(255,0,204), -1, 8, 0);
+//      cv::imshow(IMAGE_WINDOW, cv_color_ptr->image);
+//      cv::imshow(IMAGE_WINDOW, imageCircle);
+//      cv::imshow(DEPTH_WINDOW, cv_depth_ptr->image);
+//      cv::imshow(HOUGH_WINDOW, mask);
+//      cv::waitKey(3);
   }
 
-  void imageCb(const sensor_msgs::ImageConstPtr& msg)
-  {
-      cv_bridge::CvImagePtr cv_ptr;
-      try
-      {
-          cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
-      }
-      catch (cv_bridge::Exception& e)
-      {
-          ROS_ERROR("cv_bridge exception: %s", e.what());
-          return;
-      }
-
-      // Draw an example circle on the video stream
-      //if (cv_ptr->image.rows > 60 && cv_ptr->image.cols > 60)
-      // cv::circle(cv_ptr->image, cv::Point(50, 50), 10, CV_RGB(255,0,0));
-      //cv::putText(cv_ptr->image,
-      //	"Here is some text",
-      //	cv::Point(cv_ptr->image.cols/2,cv_ptr->image.rows/2), // Coordinates
-      //	cv::FONT_HERSHEY_COMPLEX_SMALL, // Font
-      //	1.0, // Scale. 2.0 = 2x bigger
-      //	cv::Scalar(255,0,0), // BGR Color
-      //	1, // Line Thickness (Optional)
-      //	CV_AA); // Anti-alias (Optional)
-
-      imageCircle = cv_ptr->image;
-      //Convert image to HSV
-      cvtColor(cv_ptr->image, imageHsv, cv::COLOR_BGR2HSV);
-
-      //Filtering to find orange golf ball
-      cv::inRange(imageHsv, hsvMin, hsvMax, filteredHsv);
-
-      //Subtractor for masking out static
-      subtractor->apply(filteredHsv, mask);
-
-      //erode and dilate
-      cv::erode(mask,mask,erodeElement,cv::Point(-1,-1),6);
-      cv::dilate(mask,mask,dilateElement,cv::Point(-1,-1),6);
-
-      cv::GaussianBlur(mask,mask,gaussianKernel,9,9);
-      //    Hough Circle filter
-      cv::HoughCircles(mask, circles, CV_HOUGH_GRADIENT, 1, mask.rows/2, 20, 10, 5, 100);
-
-      //    if (flag == 0){
-      //        previousFrame = filteredHsv;
-      ////        std::cout << "Here" << std::endl;
-      //        flag = 1;
-      //    }
-      //    cv::absdiff(filteredHsv,previousFrame, absoluteDiff);
-
-      //    previousFrame = filteredHsv;
-      //    cv::erode(absoluteDiff,absoluteDiff,erodeElement,cv::Point(-1,-1),1);
-      //    cv::dilate(absoluteDiff,absoluteDiff,erodeElement,cv::Point(-1,-1),1);
-
-      //Erode --> dilate = reduce white noise (morphological opening)
-      //Erode to take away white noise
-      //    cv::erode(filteredHsv,filteredHsv,erodeElement,cv::Point(-1,-1),3); //1 at end is iterations, increase for more erosion
-      //Dilate to enhance white golf ball
-      //    cv::dilate(filteredHsv,filteredHsv,dilateElement,cv::Point(-1,-1),5);
-      //Fill out the golf ball
-      //    cv::dilate(filteredHsv,filteredHsv,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(11,11)),cv::Point(-1,-1),5);
-
-      //Dilate --> erode = increase white spots (morphological closing)
-      //    cv::dilate(filteredHsv,filteredHsv,dilateElement,cv::Point(-1,-1),7);
-      //cv::erode(filteredHsv,filteredHsv,erodeElement,cv::Point(-1,-1),1); //1 at end is iterations, increase for more erosion
-
-      //Smoothing image
-      //    cv::GaussianBlur(filteredHsv,filteredHsv,gaussianKernel,9,9);
-
-      //    int type = filteredHsv.type();
-      //    std::cout << type << std::endl;
-      //    Hough Circle filter
-      //    cv::HoughCircles(filteredHsv, circles, CV_HOUGH_GRADIENT, 1, filteredHsv.rows/8, 50, 25, 20, 100);
-
-      //std::cout << circles.size() << std::endl;
-      //Post circles to IMAGE_WINDOW
-      for( size_t i = 0; i < circles.size(); i++ )
-      {
-          //std::cout << "circle: " << i << std::endl;
-          cv::Point center(cvRound(circles[i][0]), cvRound(circles[i][1]));
-          int radius = cvRound(circles[i][2]);
-          // circle center
-          cv::circle( imageCircle, center, 3, cv::Scalar(0,255,0), -1, 8, 0 );
-          // circle outline
-          cv::circle( imageCircle, center, radius, cv::Scalar(0,0,255), 3, 8, 0 );
-          cv::putText( imageCircle, "Test", center, cv::FONT_HERSHEY_DUPLEX, 1, cv::Scalar(255,0,0),2);
-      }
-      //    // Update GUI Window
-      cv::imshow(IMAGE_WINDOW, imageCircle);
-      //    cv::imshow(IMAGE_WINDOW, cv_ptr->image);
-      //    cv::imshow(PROCESSED_WINDOW, absoluteDiff);
-      //    cv::imshow(IMAGE_WINDOW, filteredHsv);
-      cv::imshow(PROCESSED_WINDOW, mask);
-      cv::waitKey(3);
-
-      // Output modified video stream
-      image_pub_.publish(cv_ptr->toImageMsg());
-  }
-  
-  void depthCb(const sensor_msgs::ImageConstPtr& msg)
-  {
-      cv_bridge::CvImagePtr cv_ptr;
-      try
-      {
-          cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::TYPE_16UC1);
-      }
-      catch (cv_bridge::Exception& e)
-      {
-          ROS_ERROR("cv_bridge exception: %s", e.what());
-          return;
-      }
-
-      // Draw an example circle on the video stream
-      // if (cv_ptr->image.rows == image.rows/2 && cv_ptr->image.cols == image.cols/2)
-      //   cv::circle(cv_ptr->image, cv::Point(50, 50), 10, CV_RGB(255,0,0));
-
-      // Print pixel value of depth image at centre
-      //std::cout << cv_ptr->image.at<uint16_t>(cv_ptr->image.rows/2,cv_ptr->image.cols/2) << std::endl;
-
-      //Print pixel values at centre of screen
-      //std::cout << cv_ptr->image.cols/2 << std::endl;	//960 pixel
-      //std::cout << cv_ptr->image.rows/2 << std::endl;	//540 pixel
-
-      depthMap = cv_ptr->image;   //Depth map represents each pixel as it's distance in millimeters
-      //Brighten depth map by bumping up pixel values using percentage from max value, max value kinect2 can read accurately = 5 metres
-      //    for(int i = 1; depthMap.cols < i; i++)
-      //    {
-      //        for(int j = 1; depthMap.rows < j; j++)
-      //        {
-      //            if(depthMap.at<uint16_t>(i,j) > MAX_KINECT_RANGE){
-      //                depthMap.at<uint16_t>(i,j) = MAX_KINECT_RANGE;
-      //            }
-      //            depthMap.at<uint16_t>(i,j) = cvRound((depthMap.at<uint16_t>(i,j) / MAX_KINECT_RANGE)*65536);
-      //        }
-      //    }
-
-      // Update GUI Window
-      cv::imshow(DEPTH_WINDOW, depthMap);
-      cv::waitKey(3);
-
-      // Output modified video stream
-      depth_pub_.publish(cv_ptr->toImageMsg());
-  }
+  //Find ball using HSV filter for colour
+  //Background subtraction and erode + dilate for noise reduction
+  //Hough circle detector for finding ball
 
   cv::Point findBall(const cv_bridge::CvImagePtr& cv_ptr){
       //Convert image to HSV
@@ -361,7 +222,6 @@ public:
        */
       int u = ball.x;
       int v = ball.y;
-      //      uint16_t depth = cv_depth_ptr->image.at<uint16_t>(ball);
       //      std::cout << depth << std::endl;
       //Depth at ball's 'centre'
       unsigned short depth = cv_ptr->image.at<unsigned short>(ball);
