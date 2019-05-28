@@ -44,10 +44,10 @@ static const uint QUEUE_SIZE = 10;
 //static const double PRINCIPAL_POINT_X = 9.6239554359031615e+02/2;
 //static const double PRINCIPAL_POINT_Y = 5.2329256537105312e+02/2;
 //QHD
-static const double FOCAL_LENGTH_X = 1.0605856774255615e+03/2;
-static const double FOCAL_LENGTH_Y = 1.0634180897705726e+03/2;
-static const double PRINCIPAL_POINT_X = 9.6239554359031615e+02/2;
-static const double PRINCIPAL_POINT_Y = 5.2329256537105312e+02/2;
+//static const double FOCAL_LENGTH_X = 1.0605856774255615e+03/2;
+//static const double FOCAL_LENGTH_Y = 1.0634180897705726e+03/2;
+//static const double PRINCIPAL_POINT_X = 9.6239554359031615e+02/2;
+//static const double PRINCIPAL_POINT_Y = 5.2329256537105312e+02/2;
 
 //ZED [Stereo Camera]
 //Depth and image registered on left camera
@@ -64,10 +64,10 @@ static const double PRINCIPAL_POINT_Y = 5.2329256537105312e+02/2;
 //[         698.655             0                642.677;
 //            0               698.655             331.06;
 //            0                 0                   1   ]
-//static const double FOCAL_LENGTH_X = 698.655;
-//static const double FOCAL_LENGTH_Y = 698.655;
-//static const double PRINCIPAL_POINT_X = 642.677;
-//static const double PRINCIPAL_POINT_Y = 331.06;
+static const double FOCAL_LENGTH_X = 698.655;
+static const double FOCAL_LENGTH_Y = 698.655;
+static const double PRINCIPAL_POINT_X = 642.677;
+static const double PRINCIPAL_POINT_Y = 331.06;
 
 class ImageConverter
 {
@@ -108,8 +108,6 @@ class ImageConverter
   cv::Ptr<cv::BackgroundSubtractor> subtractor;
   //Mask for background subtractor
   cv::Mat mask;
-  //Contours of ball
-  std::vector<std::vector<cv::Point> > contoursBall;
   //largest radius of circle;
   int largestRadius;
 
@@ -120,11 +118,11 @@ class ImageConverter
   unsigned int counter;
 
   //HSV for Kinect 2 hsvMin(cv::Scalar(12,74,222)), hsvMax(cv::Scalar(38,255,255))
-  //HSV for ZED hsvMin(cv::Scalar(13,184,187)), hsvMax(cv::Scalar(35,255,255)
+  //HSV for ZED
 
 public:
   ImageConverter()
-      : it_(nh_), hsvMin(cv::Scalar(12,74,222)), hsvMax(cv::Scalar(38,255,255)),
+      : it_(nh_), hsvMin(cv::Scalar(13,184,187)), hsvMax(cv::Scalar(35,255,255)),
         dilateElement(cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3))), erodeElement(cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3))),
         gaussianKernel(cv::Size(9,9)), subtractor(cv::createBackgroundSubtractorMOG2()), counter(0), flag(false)
   {
@@ -134,12 +132,12 @@ public:
 //      colorMsg.subscribe(nh_,"/kinect2/hd/image_color_rect",1);
 //      depthMsg.subscribe(nh_,"/kinect2/hd/image_depth_rect",1);
       //Quarter HD topics, (Way faster)
-      colorMsg.subscribe(nh_,"/kinect2/qhd/image_color_rect",1);
-      depthMsg.subscribe(nh_,"/kinect2/qhd/image_depth_rect",1);
+//      colorMsg.subscribe(nh_,"/kinect2/qhd/image_color_rect",1);
+//      depthMsg.subscribe(nh_,"/kinect2/qhd/image_depth_rect",1);
 
       //ZED VGA topics
-//      colorMsg.subscribe(nh_,"/zed/zed_node/rgb/image_rect_color",1);
-//      depthMsg.subscribe(nh_,"/zed/zed_node/depth/depth_registered",1);
+      colorMsg.subscribe(nh_,"/zed/zed_node/rgb/image_rect_color",1);
+      depthMsg.subscribe(nh_,"/zed/zed_node/depth/depth_registered",1);
 
       //Note, change MySyncPolicy(queueSize) to change how many messages it compares
       sync_.reset(new Sync(MySyncPolicy(QUEUE_SIZE), colorMsg, depthMsg));
@@ -191,12 +189,10 @@ public:
       ball = findBall(cv_color_ptr);
       if (flag == true){
 //      cv::Point3d XYZ = findXYZ(ball, cv_depth_ptr);      //Kinect 2
-      std::vector<cv::Point> ballPoints = allCirclePoints(ball,mask.rows,mask.cols);
-//        std::vector<cv::Point> ballPoints = allContourPoints(contoursBall,mask.rows,mask.cols);
+//      std::vector<cv::Point> ballPoints = allCirclePoints(ball,largestRadius,mask.rows,mask.cols);
 //      largestRadius = 0;        //reset largestRadius
 //      std::cout << ballPoints.size() << std::endl;
-      cv::Point3d XYZ = findXYZAround(ballPoints, cv_depth_ptr);
-//      cv::Point3d XYZ = findXYZZed(ball,depthMsg);          //ZED
+      cv::Point3d XYZ = findXYZZed(ball,depthMsg);          //ZED
 //      std::cout << "[" << XYZ.x << "," << XYZ.y << "," << XYZ.z << "]" << std::endl;
       ballMsg.point.x = XYZ.x;
       ballMsg.point.y = XYZ.y;
@@ -217,16 +213,10 @@ public:
       //DEBUG
       cv::Mat imageCircle = cv_color_ptr->image;
 //      Ball centre point
-//      cv::circle(imageCircle, ball, 6, cv::Scalar(0,0,255), -1, 8, 0 );
+      cv::circle(imageCircle, ball, 6, cv::Scalar(0,0,255), -1, 8, 0 );
 //      Principal Point
       cv::circle(imageCircle, cv::Point(cvRound(PRINCIPAL_POINT_X),cvRound(PRINCIPAL_POINT_Y)), 3, cv::Scalar(255,0,204), -1, 8, 0);
-      // Ball value zone
-      cv::circle(imageCircle,ball,15,cv::Scalar(255),-1);
-      //      cv::imshow(IMAGE_WINDOW, cv_color_ptr->image);
-      //Draw contours on imageCircle
-      if (flag == true){
-      cv::drawContours(imageCircle, contoursBall, -1, cv::Scalar(0,0,255));
-      }
+//      cv::imshow(IMAGE_WINDOW, cv_color_ptr->image);
       cv::imshow(IMAGE_WINDOW, imageCircle);
 //      cv::imshow(DEPTH_WINDOW, cv_depth_ptr->image);
 //      cv::imshow(HOUGH_WINDOW, filteredHsv);
@@ -251,12 +241,12 @@ public:
       mask = filteredHsv;
 
       //Erode and dilate (remove background noise) [KINECT 2]
-      cv::erode(mask,mask,erodeElement,cv::Point(-1,-1),2);
-      cv::dilate(mask,mask,dilateElement,cv::Point(-1,-1),8);
-
-//      //Erode and dilate (remove background noise) [ZED]
-//      cv::erode(mask,mask,erodeElement,cv::Point(-1,-1),4);
+//      cv::erode(mask,mask,erodeElement,cv::Point(-1,-1),6);
 //      cv::dilate(mask,mask,dilateElement,cv::Point(-1,-1),6);
+
+      //Erode and dilate (remove background noise) [ZED]
+      cv::erode(mask,mask,erodeElement,cv::Point(-1,-1),4);
+      cv::dilate(mask,mask,dilateElement,cv::Point(-1,-1),6);
 
       //Smooth edges of ball
       cv::GaussianBlur(mask,mask,gaussianKernel,9,9);
@@ -266,35 +256,34 @@ public:
       cv::Point ball(0,0);
       //Centre of Mass using Moments (https://docs.opencv.org/2.4/doc/tutorials/imgproc/shapedescriptors/moments/moments.html)
       std::vector<std::vector<cv::Point> > contours;
-      //Find Contours
+      //Find Contours [ZED]
       cv::findContours(filteredHsv, contours, CV_RETR_EXTERNAL,CV_CHAIN_APPROX_NONE, cv::Point(0,0));
-//      cv::Mat contourTest = cv::Mat::zeros(mask.rows,mask.cols,CV_8UC3);
+      cv::Mat contourTest = cv::Mat::zeros(mask.rows,mask.cols,CV_8UC3);
 
 //      std::cout << contours.size() << std::endl;
       //Only do this if contours are available
       if (contours.size() > 0){
           flag = true;
-          //Get moments
+          //Get moments [ZED]
           //      std::vector<cv::Moments> mu(contours.size());
           //      for (int i = 0; i < contours.size(); i++){
           //          mu[i] = cv::moments(contours[i], false);
           //      }
           cv::Moments mu = cv::moments(contours[0],true);
-          //Get mass centres
+          //Get mass centres [ZED]
           //      std::vector<cv::Point2f> mc(contours.size());
           //      for (int i = 0; i < contours.size(); i++){
           //          mc[i] = cv::Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 );
           //      }
           cv::Point2f mc = cv::Point2f( mu.m10/mu.m00 , mu.m01/mu.m00 );
           ball = cv::Point(cvRound(mc.x),cvRound(mc.y));
-          //Draw contours and centre
-//          cv::drawContours(contourTest, contours, -1, cv::Scalar(0,0,255));
-//          cv::circle(contourTest, mc, 3, cv::Scalar(0,255,0));
-          contoursBall = contours;
-//          cv::imshow("Contours", contourTest);
+          //Draw contours and centre[ZED]
+          cv::drawContours(contourTest, contours, -1, cv::Scalar(0,0,255));
+          cv::circle(contourTest, mc, 3, cv::Scalar(0,255,0));
+          cv::imshow("Contours", contourTest);
       }
       else{
-//          cv::imshow("Contours",cv::Mat::zeros(mask.rows,mask.cols,CV_8UC3));
+          cv::imshow("Contours",cv::Mat::zeros(mask.rows,mask.cols,CV_8UC3));
           flag = false;
 
       }
@@ -328,12 +317,11 @@ public:
 
   //Find all points within circle of Hough Circle transform
   //https://stackoverflow.com/questions/20378050/access-pixel-values-inside-the-detected-object-c
-  std::vector<cv::Point> allCirclePoints(cv::Point ball, int image_height, int image_width){
-      int radius = 15;
+  std::vector<cv::Point> allCirclePoints(cv::Point ball, int radius, int image_height, int image_width){
       std::vector<cv::Point> ballPoints;
       cv::Mat mask = cv::Mat::zeros(image_height,image_width, CV_8U);
 //      std::cout << cvRound(radius/2) << std::endl;
-      cv::circle(mask,ball,cvRound(radius),cv::Scalar(255),-1);
+      cv::circle(mask,ball,cvRound(radius/2),cv::Scalar(255),-1);
 //      imshow("Test",mask);
 //      cv::waitKey(3);
       for(unsigned int y=0; y<image_height; ++y)
@@ -344,73 +332,6 @@ public:
             ballPoints.push_back(ballPoint);
           }
       return ballPoints;
-  }
-
-  //Find all points inside a contour
-  std::vector<cv::Point> allContourPoints(std::vector<std::vector<cv::Point> > contours,int image_height, int image_width){
-      std::vector<cv::Point> ballPoints;
-      cv::Mat mask = cv::Mat::zeros(image_height,image_width, CV_8U);
-      cv::drawContours(mask, contours, -1, cv::Scalar(255),-1);
-//      cv::imshow("test", mask);
-      for(unsigned int y=0; y<image_height; ++y)
-        for(unsigned int x=0; x<image_width; ++x)
-          if(mask.at<unsigned char>(y,x) > 0)
-          {
-            cv::Point ballPoint(x,y);
-            ballPoints.push_back(ballPoint);
-          }
-      return ballPoints;
-  }
-
-  //Finds the smallest depth value using a vector of image points
-  cv::Point3d findXYZAround(std::vector<cv::Point> ballPoints, const cv_bridge::CvImagePtr& cv_ptr){
-      unsigned short currentDepth;
-      unsigned short depth;
-      int currentU;
-      int currentV;
-      int u;
-      int v;
-      cv::Point ball;
-      bool zeroFlag = false;
-      //Kinect
-      for (int i = 0; i < ballPoints.size(); i++){
-          ball = ballPoints.at(i);
-          currentU = ball.x;
-          currentV = ball.y;
-          currentDepth = cv_ptr->image.at<unsigned short>(ball);
-          //Need to find depth value that isn't 0 to fill depth with
-          if (currentDepth > 0 && zeroFlag == false){
-              zeroFlag = true;
-              depth = currentDepth;
-          }
-          //Skip until you find a value that isn't zero depth
-          else if (zeroFlag == false){
-              continue;
-          }
-          if (currentDepth < depth && currentDepth != 0){
-              depth = currentDepth;
-              u = currentU;
-              v = currentV;
-          }
-      }
-      //Just in case we exit loop with no depth
-      if (zeroFlag == false){
-          depth = 0;
-      }
-      //Depth is a crazy value, don't consider
-      if (depth > 2300){
-          std::cout << depth << std::endl;
-          depth = 0;
-      }
-      //Using intrinsic parameters of camera we now convert (u,v) and depth into
-      //(X,Y,Z) from camera.
-      double X = depth*(u - PRINCIPAL_POINT_X) / FOCAL_LENGTH_X;
-      double Y = depth*(v - PRINCIPAL_POINT_Y) / FOCAL_LENGTH_Y;
-
-      //Vector of XYZ values
-      cv::Point3d XYZ(X,Y,depth);
-      return XYZ;
-
   }
 
   //Finding the XYZ coordinates of ball based on Kinect intrinsic parameters
