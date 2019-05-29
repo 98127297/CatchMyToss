@@ -145,7 +145,9 @@ classdef TrajPrediction < handle
                 if y <= -0.3 && y >= -0.4068
                     within = true;
                 end
-            else
+            end
+            
+            if within ~= true
                 within = false;
             end
             
