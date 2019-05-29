@@ -46,7 +46,7 @@ classdef UR3RosControl
         end
         
         %% Move_Ur3
-        function result = Ur3_Move(self, joint_angles)
+        function result = Ur3_Move(self, joint_angles, duration)
             
             % check if joint_angles has 1 row 6 col
             if size(joint_angles, 1) == 1 && size(joint_angles,2) == 6
@@ -61,7 +61,7 @@ classdef UR3RosControl
                 self.joint_trajectory_goal.Positions = joint_angles;
                 self.joint_trajectory_goal.Velocities = zeros(1,6);
                 %joint_trajectory_points.Accelerations = [0.75 0.75 0.75 0.75 0.75 0.75];
-                self.joint_trajectory_goal.TimeFromStart = rosduration(5.0);
+                self.joint_trajectory_goal.TimeFromStart = rosduration(duration);
 
                 self.goalMsg.Trajectory.JointNames = self.JOINT_NAMES;
                 self.goalMsg.Trajectory.Points = [self.joint_trajectory_current, self.joint_trajectory_goal];
