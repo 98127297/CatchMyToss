@@ -236,13 +236,13 @@ public:
           ball_xyz_.publish(ballMsg);
 
       }
-      else{
-          ballMsg.point.x = 0;
-          ballMsg.point.y = 0;
-          ballMsg.point.z = 0;
-          ballMsg.header = cv_color_ptr->header;
-          ball_xyz_.publish(ballMsg);
-      }
+//      else{
+//          ballMsg.point.x = 0;
+//          ballMsg.point.y = 0;
+//          ballMsg.point.z = 0;
+//          ballMsg.header = cv_color_ptr->header;
+//          ball_xyz_.publish(ballMsg);
+//      }
       //DEBUG
 //      cv::Mat imageCircle = cv_color_ptr->image;
 ////      Ball centre point
