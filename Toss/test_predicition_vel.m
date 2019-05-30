@@ -71,9 +71,9 @@ for i = 1:size(message,1)
 
             [x, y, z] = predictTraj(tracked_points,t(1,1:5),-0.15);
             %if x < 3 && y < 3
-                x_f = x;
-                y_f = y;
-                z_f = z;
+                x_f = x
+                y_f = y
+                z_f = z
                 
                 plot3(x_f, y_f, z_f, 'x');
             %end
@@ -94,6 +94,18 @@ end
 % figure(2)
 % f = fit(temp(:,2),temp(:,3),'poly2');
 % plot(f,temp(:,2),temp(:,3));
+
+basketOffset = 0.08;
+boundaryLimits = [0.205,0.02;-0.3-basketOffset,-0.4068];
+
+top_right = [0.205, -0.3-basketOffset];
+top_left = [0.205, -0.4068];
+bottom_right = [0.02, -0.3-basketOffset];
+bottom_left = [0.02, -0.4068];
+
+rect = [top_right;top_left;bottom_left;bottom_right];
+patch(rect(:,1), rect(:,2), -0.15*ones(4,1), 'r');
+
 
 
 %% calculate traj from average velocity

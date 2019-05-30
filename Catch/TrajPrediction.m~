@@ -113,6 +113,10 @@ classdef TrajPrediction < handle
                 end
                 
                 [x, y] = self.predictTraj(self.trackedPoints,self.time(1,1:5),self.zPlane);
+                disp('x');
+                disp(x);
+                disp('y');
+                disp(y)
                 % determine if xyz is within the fixed box
                 % If within box, we move towards the prediction
                 if self.CheckConstraint(x,y) == true
@@ -134,7 +138,7 @@ classdef TrajPrediction < handle
         end
         
         %% predictTraj equation
-        function [x_final, y_final, z_final] = predictTraj(~,V,time,height)
+        function [x_final, y_final, z_final] = predictTraj(self,V,time,height)
             
             x = V(:,1)';
             y = V(:,2)';
@@ -181,7 +185,7 @@ classdef TrajPrediction < handle
         
         %% Check constraint function
         % Check if calculated is within bounding box, if not don't move
-        function within = CheckConstraint(self, x,y)
+        function within = CheckConstraint(self,~, x,y)
             check = false;
             if x <= self.xMax && x >= self.xMin
                 if y <= self.yMax && y >= self.yMin
@@ -189,8 +193,7 @@ classdef TrajPrediction < handle
                     check = true;
                 end
             end
-            
-            if check == false
+            if check ~= true
                 within = false;
             end
 %             
