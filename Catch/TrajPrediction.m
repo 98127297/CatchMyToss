@@ -37,7 +37,7 @@ classdef TrajPrediction < handle
         xMin;
         yMax;
         yMin;
-        yCentre = -0.3465;
+        yCentre = -0.3469;
         
         %UR3 control
         rosControl;
@@ -118,8 +118,6 @@ classdef TrajPrediction < handle
                 end
                 
                 [x, y] = self.predictTraj(self.trackedPoints,self.time(1,1:5),self.zPlane);
-                disp(x);
-                disp(y);
                 y = y - 0.05;
                 % determine if xyz is within the bounding box
                 % If within box, we move towards the prediction
@@ -135,9 +133,9 @@ classdef TrajPrediction < handle
                 %on if it's within bounding box
                 %If tracking flag is set, the robot is receiving valid
                 %trajectories.
-                [targetX,targetY] = self.Tracking(self.trackedPoints(end,1),self.trackedPoints(end,2));
-                display(targetY);
-                transform = transl(targetX,targetY,self.zPlane) * self.endEffectorAngle;
+                targetX = self.Tracking(self.trackedPoints(end,1));
+                display(targetX);
+                transform = transl(targetX,self.yCentre,self.zPlane) * self.endEffectorAngle;
                 % calculate joint angle ikcon
                 goalJoints = self.Ikcon(transform);
                 disp(goalJoints);
@@ -226,18 +224,13 @@ classdef TrajPrediction < handle
         
         %% Tracking function
         % Track the x of trajectory and output x,y for UR3 to move to
-        function [x,y] = Tracking(self,predictedX,predictedY)
+        function [x,y] = Tracking(self,predictedX)
             if predictedX > self.xMax
                 x = self.xMax
             elseif predictedX < self.xMin
                 x = self.xMin
             else
                 x = predictedX;
-            end
-            if predictedY <= self.yMax && predictedY >= self.yMin
-                y = predictedY;
-            else
-                y = self.yCentre;
             end
         end
     end

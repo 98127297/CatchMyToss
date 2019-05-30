@@ -118,8 +118,6 @@ classdef TrajPrediction < handle
                 end
                 
                 [x, y] = self.predictTraj(self.trackedPoints,self.time(1,1:5),self.zPlane);
-                disp(x);
-                disp(y);
                 y = y - 0.05;
                 % determine if xyz is within the bounding box
                 % If within box, we move towards the prediction
@@ -135,8 +133,8 @@ classdef TrajPrediction < handle
                 %on if it's within bounding box
                 %If tracking flag is set, the robot is receiving valid
                 %trajectories.
-                [targetX,targetY] = self.Tracking(self.trackedPoints(end,1),self.trackedPoints(end,2);
-                display(targetY);
+                [targetX,targetY] = self.Tracking(self.trackedPoints(end,1),self.trackedPoints(end,2));
+                display(targetX);
                 transform = transl(targetX,targetY,self.zPlane) * self.endEffectorAngle;
                 % calculate joint angle ikcon
                 goalJoints = self.Ikcon(transform);
