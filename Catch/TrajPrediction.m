@@ -26,6 +26,7 @@ classdef TrajPrediction < handle
         zPlane;
         endEffectorAngle;
         qCentre;
+        
         % matrix for traj_prediction (container for data)
         trackedPoints;
         timeStamps;
@@ -64,6 +65,7 @@ classdef TrajPrediction < handle
             self.xMin = boundaryLimits(1,2);
             self.yMax = boundaryLimits(2,1);
             self.yMin = boundaryLimits(2,2);
+            self.endEffectorAngle = endEffectorAngle;
             self.ur3 = ur3;
             self.baseToCamera = baseToCamera;
             self.count = 0;
@@ -80,6 +82,8 @@ classdef TrajPrediction < handle
             self.Ikcon(corner2);
             self.Ikcon(corner3);
             self.Ikcon(corner4);
+            
+            ur3roscontrol.Ur3_Move(qCentre,5);
             
             
         end
@@ -117,10 +121,10 @@ classdef TrajPrediction < handle
                 % If within box, we move towards the prediction
                 if self.CheckConstraint(x,y) == true
                     % calculate joint angle ikcon
-                    goalJoints = self.ur3.model.ikcon(transl(x,y,self.zPlane));
+                    goalJoints = self.Ikcon(transl(x,y,self.zPlane) * self.endEffectorAngle,self.qCentre);
                     disp(goalJoints);
                     % call roscontrol to move arm
-                    %self.rosControl.Ur3_Move(goalJoints,0.4);
+                    self.rosControl.Ur3_Move(goalJoints,0.4);
                     
                 end
             end

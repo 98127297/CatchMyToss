@@ -4,8 +4,6 @@ close all
 clear all
 clc
 
-rosinit
-
 %Centre position of bounding box
 qCentre = deg2rad([90 0 80 -70 90 0]);
 
@@ -18,10 +16,10 @@ basketOffset = 0.08;
 %boundary limits
 boundaryLimits = [0.205,0.02;-0.3-basketOffset,-0.4068];
 
-ur3RosControl = 1;%UR3RosControl(false);
+ur3RosControl = UR3RosControl(false);
 ur3 = UR3Catching(transl(0,0,0));
 
-%Z Plane height & endeffector angle
+%Z Plane height & end effector angle
 zPlane = -0.15;
 endEffectorAngle = trotx(1.7453);
 

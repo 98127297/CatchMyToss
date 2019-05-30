@@ -11,8 +11,8 @@ rosshutdown
 % ur3.model.tool = transl(0,0,0.12);        %Consider our box attached to end effector
 ur3 = UR3Catching(transl(0,0,0.12));
 % ur3.PlotAndColourRobot();
-
-ur3.model.plot(q);
+qCentre = deg2rad([90 0 80 -70 90 0]);
+ur3.model.plot(qCentre);
 ur3.model.teach;
 % q2 = deg2rad([-36,50,-50,0,57,0]);
 % transform = ur3.model.fkine(q2);
