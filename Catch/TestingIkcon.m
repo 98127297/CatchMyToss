@@ -1,8 +1,10 @@
 clear all
 close all
 clc
+% addpath('/home/sheffield/Desktop/41013 Robotics/Assignments/Assignment 2/GitRepo/Toss');
 set(0,'DefaultFigureWindowStyle','docked');
 ur3 = UR3Catching(transl(0,0,0.12));
+% ur3 = UR3
 %Assuming we want the same end effector angle
 % angle = troty(-pi/2)*trotz(-pi/2)*trotx(deg2rad(5));
 endEffectorAngle = trotx(1.7453);
@@ -19,9 +21,18 @@ bottomLeft = transl(0.02,-0.4068,zPlane)*endEffectorAngle;
 baseToCamera = transl(-0.2,0.06,0.24) * trotz(-90,'deg') * trotx(-70,'deg');
 %Basket centre is 8cm from end effector in Z axis
 basketOffset = 0.08;
-boundaryLimits = [0.205,0.02;-0.3,-0.4068];
+boundaryLimits = [0.205-basketOffset,0.02+basketOffset;-0.3-basketOffset,-0.4068+basketOffset];
 reallyOff = transl(1,1,0);
 traj = TrajPrediction(ur3,zPlane,baseToCamera,boundaryLimits,qCentre,endEffectorAngle);
+
+%Testing transl speed (no real diff)
+% tic
+% trans = transl(0.1,0.2,0.3);
+% toc
+% tic
+% iMat = eye(4);
+% iMat(1:3,4) = [0.1,0.2,0.3]';
+% toc
 % 
 % tic
 % traj.Ikcon(topRight);

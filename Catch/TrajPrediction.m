@@ -5,7 +5,7 @@ classdef TrajPrediction < handle
     %% Properties
     properties
         
-        % assume global origin is 0,0,0
+        % assume global origin is 0,0,0 at base of UR3 catcher
         
         % base is 613mm/ 0.613m from the floor
         
@@ -15,9 +15,13 @@ classdef TrajPrediction < handle
         % top right = (0.02, -0.4068, -0.156)
         % bottom left = (0.205, -0.3, -0.156)
         
-        % define transform between origin (ur3 base) and camera
-        % base_2_ball = camera_2_ball(from topic) x base_2_camera
-%         base_2_camera = transl(0,0,0.1) * trotz(-90,'deg') * trotx(-90,'deg');
+        % %From base to camera, x = -0.2m, y = 0.06m, z = 0.24m, rotation along x axis = -70deg
+        % define transform between origin (ur3 base) to camera
+        % baseToCamera = transl(-0.2,0.06,0.24) * trotz(-90,'deg') * trotx(-70,'deg');
+        % %Basket centre is 8cm from end effector in Z axis
+        % basketOffset = 0.08;
+        % boundaryLimits = [0.205-basketOffset,0.02+basketOffset;-0.3-basketOffset,-0.4068+basketOffset];
+        
         baseToCamera;
         zPlane;
         endEffectorAngle;
@@ -50,7 +54,7 @@ classdef TrajPrediction < handle
     methods
         %% Constructor
 %         function self = TrajPrediction(zPlane, ur3roscontrol)
-        function self = TrajPrediction(ur3,zPlane,baseToCamera,boundaryLimits,qCentre,endEffectorAngle)
+        function self = TrajPrediction(ur3,ur3roscontrol,zPlane,baseToCamera,boundaryLimits,qCentre,endEffectorAngle)
 %             self.ball_XYZ_sub = rossubscriber('/ball_XYZ', @self.trajectoryPrediction);
             
             % initialize data
@@ -66,7 +70,7 @@ classdef TrajPrediction < handle
             self.trackedPoints = zeros(5,3);
             self.timeStamps = zeros(1,5);
             self.time = zeros(1,6);
-            %self.rosControl = ur3roscontrol;
+            self.rosControl = ur3roscontrol;
             corner1 = transl(self.xMax,self.yMax,zPlane)*endEffectorAngle;
             corner2 = transl(self.xMin,self.yMin,zPlane)*endEffectorAngle;
             corner3 = transl(self.xMax,self.yMin,zPlane)*endEffectorAngle;
@@ -76,6 +80,7 @@ classdef TrajPrediction < handle
             self.Ikcon(corner2);
             self.Ikcon(corner3);
             self.Ikcon(corner4);
+            
             
         end
         
@@ -100,7 +105,7 @@ classdef TrajPrediction < handle
                 for j = 1:(size(self.timeStamps,2)-1)
                     dt = self.timeStamps(1,j+1) - self.timeStamps(1,j);
                     if dt < 0
-                        dt = 1 + dt;
+                 U       dt = 1 + dt;
                     end
                     
                     self.time(1,j+1) = dt + self.time(1,j);
@@ -111,9 +116,10 @@ classdef TrajPrediction < handle
                 % determine if xyz is within the fixed box
                 % If within box, we move towards the prediction
                 if self.CheckConstraint(x,y) == true
-%                     ur3.model.ikcon(transl(x,y,zPlane),
                     % calculate joint angle ikcon
-                    % call roscontrol
+                    goalJoints = self.ur3.model.ikcon(transl(x,y,self.zPlane));
+                    % call roscontrol to move arm
+                    %self.rosControl.Ur3_Move(goalJoints,0.4);
                     
                 end
                 
