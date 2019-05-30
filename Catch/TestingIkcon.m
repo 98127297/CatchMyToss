@@ -2,7 +2,6 @@ clear all
 close all
 clc
 set(0,'DefaultFigureWindowStyle','docked');
-ur3 = UR3Catching(transl(0,0,0.12));
 %Assuming we want the same end effector angle
 % angle = troty(-pi/2)*trotz(-pi/2)*trotx(deg2rad(5));
 endEffectorAngle = trotx(1.7453);
