@@ -66,8 +66,9 @@ classdef UR3RosControl
                 self.goalMsg.Trajectory.JointNames = self.JOINT_NAMES;
                 self.goalMsg.Trajectory.Points = [self.joint_trajectory_current, self.joint_trajectory_goal];
 
-
-                [resultMsg,result] = sendGoalAndWait(self.client,self.goalMsg,10);
+                try
+                    [resultMsg,result] = sendGoalAndWait(self.client,self.goalMsg,10);
+                end
             end
             
         end

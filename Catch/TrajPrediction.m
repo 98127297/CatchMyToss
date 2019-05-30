@@ -32,13 +32,16 @@ classdef TrajPrediction < handle
         timeStamps;
         time;
         
-        %Bounding box limits (X and Y)
+        %Inner Bounding box limits (X and Y)
         xMax;
         xMin;
         yMax;
         yMin;
         yCentre = -0.3469;
         
+        %Outer Bounding Box
+        outerBox;
+        outerOffset;
         %UR3 control
         rosControl;
         
@@ -56,16 +59,19 @@ classdef TrajPrediction < handle
     methods
         %% Constructor
 %         function self = TrajPrediction(zPlane, ur3roscontrol)
-        function self = TrajPrediction(ur3,ur3roscontrol,zPlane,baseToCamera,boundaryLimits,qCentre,endEffectorAngle)
+        function self = TrajPrediction(ur3,ur3roscontrol,zPlane,baseToCamera,boundaryLimits,qCentre,endEffectorAngle,outerOffset)
             self.ball_XYZ_sub = rossubscriber('/ball_XYZ', @self.trajectoryPrediction);
             
             % initialize data
             self.zPlane = zPlane;
             self.qCentre = qCentre;
+            self.outerOffset = outerOffset;
             self.xMax = boundaryLimits(1,1);
             self.xMin = boundaryLimits(1,2);
             self.yMax = boundaryLimits(2,1);
             self.yMin = boundaryLimits(2,2);
+            self.outerBox = [self.xMax + self.outerOffset, self.xMin - self.outerOffset ...
+                ; self.yMax + self.outerOffset, self.yMin];
             self.endEffectorAngle = endEffectorAngle;
             self.ur3 = ur3;
             self.baseToCamera = baseToCamera;
@@ -91,7 +97,7 @@ classdef TrajPrediction < handle
         
         %% Callback
         function self = trajectoryPrediction(self,~,message)
-            
+%             reset = true;
 %             tic
             % get xyz coordinate from camera
             point3D = transl(message.Point.X/1000, message.Point.Y/1000, message.Point.Z/1000);
@@ -118,30 +124,57 @@ classdef TrajPrediction < handle
                 end
                 
                 [x, y] = self.predictTraj(self.trackedPoints,self.time(1,1:5),self.zPlane);
-                y = y - 0.05;
+                y = y - 0.09;     %Drag offset
                 % determine if xyz is within the bounding box
-                % If within box, we move towards the prediction
-%                 if self.CheckConstraint(x,y) == true
-%                     transform = transl(x,y,self.zPlane) * self.endEffectorAngle;
-%                     % calculate joint angle ikcon
-%                     goalJoints = self.Ikcon(transform);
-%                     disp(goalJoints);
-%                     % call roscontrol to move arm
-%                     self.rosControl.Ur3_Move(goalJoints,0.4);
+%                 If within box, we move towards the prediction
+                if self.CheckConstraint(x,y) == true
+                    transform = transl(x,y,self.zPlane) * self.endEffectorAngle;
+                    % calculate joint angle ikcon
+                    goalJoints = self.Ikcon(transform);
+                    disp(goalJoints);
+                    % call roscontrol to move arm
+                    self.rosControl.Ur3_Move(goalJoints,0.42);
+                    pause(0.15);
+                    self.rosControl.Ur3_Move(self.qCentre,1.5);
+                % Check if in outer bounding box
+                elseif x <= self.outerBox(1,1) && x >= self.outerBox(1,2)
+                    if y <= self.outerBox(2,1) && y >= self.outerBox(2,2)
+                        [goalX,goalY] = self.OuterBoxTracking(x,y);
+                        transform = transl(goalX,goalY,self.zPlane) * self.endEffectorAngle;
+                        % calculate joint angle ikcon
+                        goalJoints = self.Ikcon(transform);
+                        disp(goalJoints);
+                        % call roscontrol to move arm
+                        self.rosControl.Ur3_Move(goalJoints,0.42);
+                        pause(0.15);
+                        self.rosControl.Ur3_Move(self.qCentre,1.5);
+                    end
+                %Go home if neither are activated    
+%                 else
+%                     if self.ur3.model.getpos() ~= self.qCentre
+%                         reset = false;
+%                     end
+                end
+%                 %Tracking mode
+%                 else
+%                 %Track X through trajectory of ball and change Y depending
+%                 %on if it's within bounding box
+%                 %If tracking flag is set, the robot is receiving valid
+%                 %trajectories.
+%                 targetX = self.Tracking(self.trackedPoints(end,1));
+%                 display(targetX);
+%                 transform = transl(targetX,self.yCentre,self.zPlane) * self.endEffectorAngle;
+%                 % calculate joint angle ikcon
+%                 goalJoints = self.Ikcon(transform);
+%                 disp(goalJoints);
+%                 % call roscontrol to move arm
+%                 self.rosControl.Ur3_Move(goalJoints,0.4);
 %                 end
-                %Track X through trajectory of ball and change Y depending
-                %on if it's within bounding box
-                %If tracking flag is set, the robot is receiving valid
-                %trajectories.
-                targetX = self.Tracking(self.trackedPoints(end,1));
-                display(targetX);
-                transform = transl(targetX,self.yCentre,self.zPlane) * self.endEffectorAngle;
-                % calculate joint angle ikcon
-                goalJoints = self.Ikcon(transform);
-                disp(goalJoints);
-                % call roscontrol to move arm
-                self.rosControl.Ur3_Move(goalJoints,0.4);
+%             elseif self.ur3.model.getpos() ~= self.qCentre
+%                 ur3roscontrol.Ur3_Move(qCentre,5);
+%                 reset = true;
             end
+            
 %             toc
         end
         
@@ -226,11 +259,34 @@ classdef TrajPrediction < handle
         % Track the x of trajectory and output x,y for UR3 to move to
         function [x,y] = Tracking(self,predictedX)
             if predictedX > self.xMax
-                x = self.xMax
+                x = self.xMax-0.05
             elseif predictedX < self.xMin
-                x = self.xMin
+                x = self.xMin+0.05
             else
                 x = predictedX;
+            end
+        end
+        
+        %% Outer Box tracking
+        % If we aren't in the inner bounding box, we hit the edges of our
+        % inner bounding box at the max x and y. Detection is based on if
+        % trajectory predicts it will land in the outer bounding box
+        function [x,y] = OuterBoxTracking(self,predictedX,predictedY)
+            %Check x
+            if predictedX > self.xMax
+                x = self.xMax;
+            elseif predictedX < self.xMin
+                x = self.xMin;
+            else
+                x = predictedX;
+            end
+            %Check y
+            if predictedY > self.yMax
+                y = self.yMax;
+            elseif predictedY < self.yMin
+                y = self.yMin;
+            else
+                y = predictedY;
             end
         end
     end
