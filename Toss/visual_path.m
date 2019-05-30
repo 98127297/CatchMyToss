@@ -3,7 +3,7 @@
 %% Path to bag file
 clear all
 clf
-path = "/media/nicholas/SSD/Uni/2019/Autumn/Robotics/Assignment 2/bagfile/wedgoodzed6.bag";
+path = "/media/nicholas/SSD/Uni/2019/Autumn/Robotics/Assignment 2/bagfile/thurszedreal1.bag";
 
 %% ROSbag test
 
@@ -57,6 +57,7 @@ xlabel('X')
 ylabel('Y')
 zlabel('Z')
 plot3(points(:,1), points(:,2), points(:,3),'o')
+trplot(transl(0,0,0));
 % title('YZ PLane');
 % xlabel('Y')
 % ylabel('Z')

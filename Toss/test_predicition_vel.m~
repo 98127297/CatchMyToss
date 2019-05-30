@@ -20,13 +20,12 @@ message = readMessages(ball_pos);
 clf
 hold on
 grid on
-axis equal
 xlabel('x')
 ylabel('y')
 zlabel('z')
 % define transform between origin (ur3 base) and camera
 % base_2_ball = camera_2_ball(from topic) x base_2_camera
-base_2_camera = trotz(-90,'deg') * transl(-0.2,0.06,0.24) * trotz(-90,'deg') * trotx(-70,'deg');
+base_2_camera = transl(-0.2,0.06,0.24) * trotz * trotz(-90,'deg') * trotx(-70,'deg');
 %base_2_camera = trotz(-90,'deg') * trotx(-90,'deg');
 
 % matrix for traj_prediction (container for data)
@@ -70,13 +69,11 @@ for i = 1:size(message,1)
             end
 
             [x, y, z] = predictTraj(tracked_points,t(1,1:5),-0.15);
-            %if x < 3 && y < 3
+            if x < 3 && y < 3
                 x_f = x;
                 y_f = y;
                 z_f = z;
-                
-                plot3(x_f, y_f, z_f, 'x');
-            %end
+            end
             % determine if any of the points in the predicted path is at the
             % same z height is within the restricted region
             %grid on
@@ -86,14 +83,10 @@ for i = 1:size(message,1)
         end
     end
     
+    
 end
-
-%plot3(x_f, y_f, z_f, 'x');
-%trplot(transl(0,0,0),'color', 'r','length',0.4);
-%trplot(base,'color', 'b','length',0.4);
-% figure(2)
-% f = fit(temp(:,2),temp(:,3),'poly2');
-% plot(f,temp(:,2),temp(:,3));
+plot3(x_f, y_f, z_f, 'x');
+trplot(transl(0,0,0));
 
 
 %% calculate traj from average velocity

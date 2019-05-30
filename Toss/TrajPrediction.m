@@ -17,15 +17,27 @@ classdef TrajPrediction < handle
         
         % define transform between origin (ur3 base) and camera
         % base_2_ball = camera_2_ball(from topic) x base_2_camera
-        base_2_camera = transl(0,0,0.1) * trotz(-90,'deg') * trotx(-90,'deg');
-        
+%         base_2_camera = transl(0,0,0.1) * trotz(-90,'deg') * trotx(-90,'deg');
+        baseToCamera;
+        zPlane;
+        endEffectorAngle;
+        qCentre;
         % matrix for traj_prediction (container for data)
-        tracked_points;
-        time_stamps;
-        t;
+        trackedPoints;
+        timeStamps;
+        time;
+        
+        %Bounding box limits (X and Y)
+        xMax;
+        xMin;
+        yMax;
+        yMin;
         
         %UR3 control
-        roscontrol;
+        rosControl;
+        
+        %UR3
+        ur3;
         
         % for callback
         count;
@@ -37,18 +49,33 @@ classdef TrajPrediction < handle
     %% Methods
     methods
         %% Constructor
-        function self = TrajPrediction()
-            self.ball_XYZ_sub = rossubscriber('/ball_XYZ', @self.trajectoryPrediction);
+%         function self = TrajPrediction(zPlane, ur3roscontrol)
+        function self = TrajPrediction(ur3,zPlane,baseToCamera,boundaryLimits,qCentre,endEffectorAngle)
+%             self.ball_XYZ_sub = rossubscriber('/ball_XYZ', @self.trajectoryPrediction);
             
             % initialize data
+            self.zPlane = zPlane;
+            self.qCentre = qCentre;
+            self.xMax = boundaryLimits(1,1);
+            self.xMin = boundaryLimits(1,2);
+            self.yMax = boundaryLimits(2,1);
+            self.yMin = boundaryLimits(2,2);
+            self.ur3 = ur3;
+            self.baseToCamera = baseToCamera;
             self.count = 0;
-            self.tracked_points = zeros(5,3);
-            self.time_stamps = zeros(1,5);
-            self.t = zeros(1,6);
-            %self.roscontrol = ur3roscontrol;
-            
-            figure(1)
-            hold on
+            self.trackedPoints = zeros(5,3);
+            self.timeStamps = zeros(1,5);
+            self.time = zeros(1,6);
+            %self.rosControl = ur3roscontrol;
+            corner1 = transl(self.xMax,self.yMax,zPlane)*endEffectorAngle;
+            corner2 = transl(self.xMin,self.yMin,zPlane)*endEffectorAngle;
+            corner3 = transl(self.xMax,self.yMin,zPlane)*endEffectorAngle;
+            corner4 = transl(self.xMin,self.yMax,zPlane)*endEffectorAngle;
+            %We need to use ikcon a few times to make it faster?
+            self.Ikcon(corner1);
+            self.Ikcon(corner2);
+            self.Ikcon(corner3);
+            self.Ikcon(corner4);
             
         end
         
@@ -57,11 +84,11 @@ classdef TrajPrediction < handle
             
             % get xyz coordinate from camera
             point3D = transl(message.Point.X/1000, message.Point.Y/1000, message.Point.Z/1000);
-            point_T = self.base_2_camera * point3D;
+            baseToBall = self.baseToCamera * point3D;
             
             % fill the matrix
-            self.tracked_points = [self.tracked_points(2:5,:); point_T(1:3,4)'];
-            self.time_stamps = [self.time_stamps(1,2:5), message.Header.Stamp.Nsec/1000000000];
+            self.trackedPoints = [self.trackedPoints(2:5,:); baseToBall(1:3,4)'];
+            self.timeStamps = [self.timeStamps(1,2:5), message.Header.Stamp.Nsec/1000000000];
             self.count = self.count + 1;
             
             % do prediction if size of list == 6
@@ -69,21 +96,22 @@ classdef TrajPrediction < handle
                 
                 % calculate correct timestamp due to Nsec reset back to 0 when
                 % overflow 1s
-                self.t(1,1) = self.time_stamps(1,1);
-                for j = 1:(size(self.time_stamps,2)-1)
-                    dt = self.time_stamps(1,j+1) - self.time_stamps(1,j);
+                self.time(1,1) = self.timeStamps(1,1);
+                for j = 1:(size(self.timeStamps,2)-1)
+                    dt = self.timeStamps(1,j+1) - self.timeStamps(1,j);
                     if dt < 0
                         dt = 1 + dt;
                     end
                     
-                    self.t(1,j+1) = dt + self.t(1,j);
+                    self.time(1,j+1) = dt + self.time(1,j);
                 end
                 
-                [x, y] = self.predictTraj(self.tracked_points,self.t(1,1:5),0.1);
+                [x, y] = self.predictTraj(self.trackedPoints,self.time(1,1:5),self.zPlane);
                 
                 % determine if xyz is within the fixed box
+                % If within box, we move towards the prediction
                 if self.CheckConstraint(x,y) == true
-                    
+%                     ur3.model.ikcon(transl(x,y,zPlane),
                     % calculate joint angle ikcon
                     % call roscontrol
                     
@@ -92,8 +120,14 @@ classdef TrajPrediction < handle
             end
         end
         
+        
+        %% Ikcon to find joint angles
+        function Ikcon(self,transform)
+            self.ur3.model.ikcon(transform,self.qCentre);
+        end
+        
         %% predictTraj equation
-        function [x_final, y_final, z_final] = predictTraj(self,V,t,height)
+        function [x_final, y_final, z_final] = predictTraj(self,V,time,height)
             
             x = V(:,1)';
             y = V(:,2)';
@@ -107,9 +141,9 @@ classdef TrajPrediction < handle
             z_vel_total = 0;
             for i = 1:size(x,2)-1
                 
-                x_vel = (x(1,i+1) - x(1,i)) / (t(1,i+1) - t(1,i));
-                y_vel = (y(1,i+1) - y(1,i)) / (t(1,i+1) - t(1,i));
-                z_vel = (z(1,i+1) - z(1,i)) / (t(1,i+1) - t(1,i));
+                x_vel = (x(1,i+1) - x(1,i)) / (time(1,i+1) - time(1,i));
+                y_vel = (y(1,i+1) - y(1,i)) / (time(1,i+1) - time(1,i));
+                z_vel = (z(1,i+1) - z(1,i)) / (time(1,i+1) - time(1,i));
                 
                 x_vel_total = x_vel_total + x_vel;
                 y_vel_total = y_vel_total + y_vel;
@@ -139,17 +173,24 @@ classdef TrajPrediction < handle
         end
         
         %% Check constraint function
-        function within = CheckConstraint(~, x,y)
-            
-            if x <= 0.205 && x >= 0.02
-                if y <= -0.3 && y >= -0.4068
+        % Check if calculated is within bounding box, if not don't move
+        function within = CheckConstraint(self,~, x,y)
+            if x <= self.xMax && x >= self.xMin
+                if y <= self.yMax && y >= self.yMin
                     within = true;
                 end
             end
-            
             if within ~= true
                 within = false;
             end
+%             
+%             if x <= 0.205 && x >= 0.02
+%                 if y <= -0.3 && y >= -0.4068
+%                     within = true;
+%                 end
+%             else
+%                 within = false;
+%             end
             
         end
     end

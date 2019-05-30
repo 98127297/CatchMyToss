@@ -2,7 +2,16 @@
 %% run callback for prediction
 rosinit
 
-predict = TrajPrediction();
+boundaryLimits = [0.205,0.02;-0.3,-0.4068];
+base_2_camera = trotz(-90,'deg') * transl(-0.2,0.06,0.24) * trotz(-90,'deg') * trotx(-70,'deg');
+qCentre = deg2rad([90 0 80 -70 90 0]);
+endEffectorAngle = trotx(1.7453);
+zPlane = -0.15;
+
+workspace = [-0.5 0.5 -0.5 0.5 -0.5 0.5];
+ur3 = UR3('UR3',transl(0,0,0),workspace);
+
+traj = TrajPrediction(ur3,zPlane,baseToCamera,boundaryLimits,qCentre,endEffectorAngle);
 
 
 %% determine catching angle
