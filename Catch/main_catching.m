@@ -11,10 +11,10 @@ qCentre = deg2rad([90 0 80 -70 90 0]);
 baseToCamera = trotz(-90,'deg') * transl(-0.2,0.06,0.24) * trotz(-90,'deg') * trotx(-70,'deg');
 
 %Basket centre is 8cm from end effector in Z axis
-basketOffset = 0.08;
+% basketOffset = 0.08;
 
 %boundary limits
-boundaryLimits = [0.205,0.02;-0.3-basketOffset,-0.4068];
+boundaryLimits = [0.205,0.02;-0.3,-0.4068];
 
 ur3RosControl = UR3RosControl(false);
 ur3 = UR3Catching(transl(0,0,0));

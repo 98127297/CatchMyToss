@@ -26,6 +26,7 @@ classdef TrajPrediction < handle
         zPlane;
         endEffectorAngle;
         qCentre;
+        
         % matrix for traj_prediction (container for data)
         trackedPoints;
         timeStamps;
@@ -64,6 +65,7 @@ classdef TrajPrediction < handle
             self.xMin = boundaryLimits(1,2);
             self.yMax = boundaryLimits(2,1);
             self.yMin = boundaryLimits(2,2);
+            self.endEffectorAngle = endEffectorAngle;
             self.ur3 = ur3;
             self.baseToCamera = baseToCamera;
             self.count = 0;
@@ -80,6 +82,8 @@ classdef TrajPrediction < handle
             self.Ikcon(corner2);
             self.Ikcon(corner3);
             self.Ikcon(corner4);
+            
+            ur3roscontrol.Ur3_Move(qCentre,5);
             
             
         end
@@ -113,18 +117,24 @@ classdef TrajPrediction < handle
                 end
                 
                 [x, y] = self.predictTraj(self.trackedPoints,self.time(1,1:5),self.zPlane);
-                disp('x');
                 disp(x);
-                disp('y');
-                disp(y)
-                % determine if xyz is within the fixed box
+                disp(y);
+                y = y - 0.05;
+                % determine if xyz is within the bounding box
                 % If within box, we move towards the prediction
-                if self.CheckConstraint(x,y) == true
-                    % calculate joint angle ikcon
-                    goalJoints = self.ur3.model.ikcon(transl(x,y,self.zPlane));
-                    disp(goalJoints);
-                    % call roscontrol to move arm
-                    %self.rosControl.Ur3_Move(goalJoints,0.4);
+%                 if self.CheckConstraint(x,y) == true
+%                     transform = transl(x,y,self.zPlane) * self.endEffectorAngle;
+%                     % calculate joint angle ikcon
+%                     goalJoints = self.Ikcon(transform);
+%                     disp(goalJoints);
+%                     % call roscontrol to move arm
+%                     self.rosControl.Ur3_Move(goalJoints,0.4);
+%                 end
+                %Track X through trajectory of ball and change Y depending
+                %on if it's within bounding box
+                %If tracking flag is set, the robot is receiving valid
+                %trajectories.
+                if self.Tracking(x,y) == true
                     
                 end
             end
@@ -133,12 +143,12 @@ classdef TrajPrediction < handle
         
         
         %% Ikcon to find joint angles
-        function Ikcon(self,transform)
-            self.ur3.model.ikcon(transform,self.qCentre);
+        function qGoal =  Ikcon(self,transform)
+            qGoal = self.ur3.model.ikcon(transform,self.qCentre);
         end
         
         %% predictTraj equation
-        function [x_final, y_final, z_final] = predictTraj(self,V,time,height)
+        function [x_final, y_final, z_final] = predictTraj(~,V,time,height)
             
             x = V(:,1)';
             y = V(:,2)';
@@ -185,7 +195,7 @@ classdef TrajPrediction < handle
         
         %% Check constraint function
         % Check if calculated is within bounding box, if not don't move
-        function within = CheckConstraint(self,~, x,y)
+        function within = CheckConstraint(self, x,y)
             check = false;
             if x <= self.xMax && x >= self.xMin
                 if y <= self.yMax && y >= self.yMin
@@ -193,7 +203,8 @@ classdef TrajPrediction < handle
                     check = true;
                 end
             end
-            if check ~= true
+            
+            if check == false
                 within = false;
             end
 %             
@@ -204,6 +215,12 @@ classdef TrajPrediction < handle
 %             else
 %                 within = false;
 %             end
+            
+        end
+        
+        %% Tracking function
+        % Track the x and output x,y for UR3 to move to
+        function [x,y] = Tracking(self,predictedX,predictedY)
             
         end
     end

@@ -37,6 +37,7 @@ classdef TrajPrediction < handle
         xMin;
         yMax;
         yMin;
+        yCentre = -0.3465;
         
         %UR3 control
         rosControl;
@@ -117,24 +118,38 @@ classdef TrajPrediction < handle
                 end
                 
                 [x, y] = self.predictTraj(self.trackedPoints,self.time(1,1:5),self.zPlane);
-                % determine if xyz is within the fixed box
+                disp(x);
+                disp(y);
+                y = y - 0.05;
+                % determine if xyz is within the bounding box
                 % If within box, we move towards the prediction
-                if self.CheckConstraint(x,y) == true
-                    % calculate joint angle ikcon
-                    goalJoints = self.Ikcon(transl(x,y,self.zPlane) * self.endEffectorAngle,self.qCentre);
-                    disp(goalJoints);
-                    % call roscontrol to move arm
-                    self.rosControl.Ur3_Move(goalJoints,0.4);
-                    
-                end
+%                 if self.CheckConstraint(x,y) == true
+%                     transform = transl(x,y,self.zPlane) * self.endEffectorAngle;
+%                     % calculate joint angle ikcon
+%                     goalJoints = self.Ikcon(transform);
+%                     disp(goalJoints);
+%                     % call roscontrol to move arm
+%                     self.rosControl.Ur3_Move(goalJoints,0.4);
+%                 end
+                %Track X through trajectory of ball and change Y depending
+                %on if it's within bounding box
+                %If tracking flag is set, the robot is receiving valid
+                %trajectories.
+                [targetX,targetY] = self.Tracking(x,y);
+                transform = transl(targetX,targetY,self.zPlane) * self.endEffectorAngle;
+                % calculate joint angle ikcon
+                goalJoints = self.Ikcon(transform);
+                disp(goalJoints);
+                % call roscontrol to move arm
+                self.rosControl.Ur3_Move(goalJoints,0.4);
             end
             toc
         end
         
         
         %% Ikcon to find joint angles
-        function Ikcon(self,transform)
-            self.ur3.model.ikcon(transform,self.qCentre);
+        function qGoal =  Ikcon(self,transform)
+            qGoal = self.ur3.model.ikcon(transform,self.qCentre);
         end
         
         %% predictTraj equation
@@ -206,6 +221,23 @@ classdef TrajPrediction < handle
 %                 within = false;
 %             end
             
+        end
+        
+        %% Tracking function
+        % Track the x of trajectory and output x,y for UR3 to move to
+        function [x,y] = Tracking(self,predictedX,predictedY)
+            if predictedX > self.xMax
+                x = self.xMax
+            elseif predictedX < self.xMin
+                x = self.xMin
+            else
+                x = predictedX;
+            end
+            if predictedY <= self.yMax && predictedY >= self.yMin
+                y = predictedY;
+            else
+                y = self.yCentre;
+            end
         end
     end
 end
