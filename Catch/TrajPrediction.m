@@ -92,7 +92,7 @@ classdef TrajPrediction < handle
         %% Callback
         function self = trajectoryPrediction(self,~,message)
             
-            tic
+%             tic
             % get xyz coordinate from camera
             point3D = transl(message.Point.X/1000, message.Point.Y/1000, message.Point.Z/1000);
             baseToBall = self.baseToCamera * point3D;
@@ -135,7 +135,8 @@ classdef TrajPrediction < handle
                 %on if it's within bounding box
                 %If tracking flag is set, the robot is receiving valid
                 %trajectories.
-                [targetX,targetY] = self.Tracking(x,y);
+                [targetX,targetY] = self.Tracking(self.trackedPoints(end,1),self.trackedPoints(end,2));
+                display(targetY);
                 transform = transl(targetX,targetY,self.zPlane) * self.endEffectorAngle;
                 % calculate joint angle ikcon
                 goalJoints = self.Ikcon(transform);
@@ -143,7 +144,7 @@ classdef TrajPrediction < handle
                 % call roscontrol to move arm
                 self.rosControl.Ur3_Move(goalJoints,0.4);
             end
-            toc
+%             toc
         end
         
         
