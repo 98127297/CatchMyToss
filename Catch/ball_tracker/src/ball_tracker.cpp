@@ -189,21 +189,33 @@ public:
       }
       //Do filtering of both images
       filterImage(cv_color_ptr);
-      //Split the images
-      cv::Mat leftImage = mask(cv::Range(0,mask.rows), cv::Range(0,mask.cols/2));
-      cv::Mat rightImage = mask(cv::Range(0,mask.rows),cv::Range(mask.cols/2,mask.cols));
+      //Split the images [Full image]
+//      cv::Mat leftImage = mask(cv::Range(0,mask.rows), cv::Range(0,mask.cols/2));
+//      cv::Mat rightImage = mask(cv::Range(0,mask.rows),cv::Range(mask.cols/2,mask.cols));
+
+      //Split images [Region of Interest]
+      cv::Mat leftImage = mask(cv::Range(0,mask.rows), cv::Range(cvRound(mask.cols/8),cvRound(mask.cols/2 - mask.cols/8)));
+      cv::Mat rightImage = mask(cv::Range(0,mask.rows), cv::Range(cvRound(mask.cols/2 + mask.cols/8),cvRound(mask.cols - mask.cols/8)));
+      int xOffset = cvRound(mask.cols/8);
+//      imshow("Left",leftImage);
+//      imshow("Right",rightImage);
+
 //      cv::Mat stereoImage = cv_color_ptr->image;
+      //Full split image
 //      cv::Mat leftImageColor = stereoImage(cv::Range(0,stereoImage.rows), cv::Range(0,stereoImage.cols/2));
 //      cv::Mat rightImageColor = stereoImage(cv::Range(0,stereoImage.rows),cv::Range(stereoImage.cols/2,stereoImage.cols));
 
+      //Region of interest split image
+//      cv::Mat leftImageColor = stereoImage(cv::Range(0,stereoImage.rows), cv::Range(cvRound(stereoImage.cols/8),cvRound(stereoImage.cols/2 - stereoImage.cols/8)));
+//      cv::Mat rightImageColor = stereoImage(cv::Range(0,stereoImage.rows),cv::Range(cvRound(stereoImage.cols/2 + stereoImage.cols/8),cvRound(stereoImage.cols - stereoImage.cols/8)));
 
       //Find ball
-      cv::Point leftBall = findBall(leftImage);
-//      std::vector<std::vector<cv::Point> > leftContours = contoursBall;
-      cv::Point rightBall = findBall(rightImage);
-//      std::vector<std::vector<cv::Point> > rightContours = contoursBall;
+      cv::Point leftBall = findBallCropped(leftImage,xOffset);
+      std::vector<std::vector<cv::Point> > leftContours = contoursBall;
+      cv::Point rightBall = findBallCropped(rightImage,xOffset);
+      std::vector<std::vector<cv::Point> > rightContours = contoursBall;
 
-//      //Show contours on color image
+      //Show contours on color image
 //      if (flag == true){
 //          cv::drawContours(leftImageColor, leftContours, -1, cv::Scalar(0,0,255));
 //          cv::drawContours(rightImageColor, rightContours, -1, cv::Scalar(0,0,255));
@@ -288,10 +300,6 @@ public:
       cv::GaussianBlur(mask,mask,gaussianKernel,9,9);
   }
 
-  //Find ball using HSV filter for colour
-  //Background subtraction and erode + dilate for noise reduction
-  //Hough circle detector for finding ball
-
   cv::Point findBall(cv::Mat filteredImage){
       cv::Point ball(0,0);
       //Centre of Mass using Moments (https://docs.opencv.org/2.4/doc/tutorials/imgproc/shapedescriptors/moments/moments.html)
@@ -316,7 +324,53 @@ public:
           //          mc[i] = cv::Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 );
           //      }
           cv::Point2f mc = cv::Point2f( mu.m10/mu.m00 , mu.m01/mu.m00 );
+          //Include xOffset for cropped images (offset required)
           ball = cv::Point(cvRound(mc.x),cvRound(mc.y));
+          //Draw contours and centre
+//          cv::drawContours(contourTest, contours, -1, cv::Scalar(0,0,255));
+//          cv::circle(contourTest, mc, 3, cv::Scalar(0,255,0));
+          contoursBall = contours;
+//          cv::imshow("Contours", contourTest);
+      }
+      else{
+//          cv::imshow("Contours",cv::Mat::zeros(mask.rows,mask.cols,CV_8UC3));
+          flag = false;
+
+      }
+      //Return ball centre point
+      return ball;
+  }
+
+  //Find ball using HSV filter for colour
+  //Background subtraction and erode + dilate for noise reduction
+  //Hough circle detector for finding ball
+
+  cv::Point findBallCropped(cv::Mat filteredImage,int xOffset){
+      cv::Point ball(0,0);
+      //Centre of Mass using Moments (https://docs.opencv.org/2.4/doc/tutorials/imgproc/shapedescriptors/moments/moments.html)
+      std::vector<std::vector<cv::Point> > contours;
+      //Find Contours
+      cv::findContours(filteredImage, contours, CV_RETR_EXTERNAL,CV_CHAIN_APPROX_NONE, cv::Point(0,0));
+//      cv::Mat contourTest = cv::Mat::zeros(mask.rows,mask.cols,CV_8UC3);
+
+//      std::cout << contours.size() << std::endl;
+      //Only do this if contours are available
+      if (contours.size() > 0){
+          flag = true;
+          //Get moments
+          //      std::vector<cv::Moments> mu(contours.size());
+          //      for (int i = 0; i < contours.size(); i++){
+          //          mu[i] = cv::moments(contours[i], false);
+          //      }
+          cv::Moments mu = cv::moments(contours[0],true);
+          //Get mass centres
+          //      std::vector<cv::Point2f> mc(contours.size());
+          //      for (int i = 0; i < contours.size(); i++){
+          //          mc[i] = cv::Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 );
+          //      }
+          cv::Point2f mc = cv::Point2f( mu.m10/mu.m00 , mu.m01/mu.m00 );
+          //Include xOffset for cropped images (offset required)
+          ball = cv::Point(cvRound(mc.x)+xOffset,cvRound(mc.y));
           //Draw contours and centre
 //          cv::drawContours(contourTest, contours, -1, cv::Scalar(0,0,255));
 //          cv::circle(contourTest, mc, 3, cv::Scalar(0,255,0));
