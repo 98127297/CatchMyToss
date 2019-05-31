@@ -41,7 +41,7 @@ classdef TrajPrediction < handle
         
         %Outer Bounding Box
         outerBox;
-        outerOffset = 0.2;
+        outerOffset;
         %UR3 control
         rosControl;
         
@@ -59,18 +59,19 @@ classdef TrajPrediction < handle
     methods
         %% Constructor
 %         function self = TrajPrediction(zPlane, ur3roscontrol)
-        function self = TrajPrediction(ur3,ur3roscontrol,zPlane,baseToCamera,boundaryLimits,qCentre,endEffectorAngle)
+        function self = TrajPrediction(ur3,ur3roscontrol,zPlane,baseToCamera,boundaryLimits,qCentre,endEffectorAngle,outerOffset)
             self.ball_XYZ_sub = rossubscriber('/ball_XYZ', @self.trajectoryPrediction);
             
             % initialize data
             self.zPlane = zPlane;
             self.qCentre = qCentre;
+            self.outerOffset = outerOffset;
             self.xMax = boundaryLimits(1,1);
             self.xMin = boundaryLimits(1,2);
             self.yMax = boundaryLimits(2,1);
             self.yMin = boundaryLimits(2,2);
             self.outerBox = [self.xMax + self.outerOffset, self.xMin - self.outerOffset ...
-                ; self.yMax + self.outerOffset, self.yMin];
+                ; self.yMax, self.yMin - self.outerOffset];
             self.endEffectorAngle = endEffectorAngle;
             self.ur3 = ur3;
             self.baseToCamera = baseToCamera;
@@ -89,15 +90,25 @@ classdef TrajPrediction < handle
             self.Ikcon(corner3);
             self.Ikcon(corner4);
             
+            %Initialisation of UR3 arm to starting position (centre of bounding box) 
             ur3roscontrol.Ur3_Move(qCentre,5);
-            
+            pause(0.15);
+%             %Initialisation finished 'Come at me bro'
+            centrePose = ur3.model.fkine(qCentre);
+            up = centrePose * trotx(-10,'deg');
+            down = centrePose * trotx(10,'deg');
+            qUp = self.Ikcon(up);
+            qDown = self.Ikcon(down);
+            ur3roscontrol.Ur3_Move(qUp,0.5)
+            pause(0.15);
+            ur3roscontrol.Ur3_Move(qDown,0.5);
+            pause(0.15);
+            ur3roscontrol.Ur3_Move(qCentre,0.5);
             
         end
         
         %% Callback
         function self = trajectoryPrediction(self,~,message)
-            reset = true;
-%             tic
             % get xyz coordinate from camera
             point3D = transl(message.Point.X/1000, message.Point.Y/1000, message.Point.Z/1000);
             baseToBall = self.baseToCamera * point3D;
@@ -108,6 +119,7 @@ classdef TrajPrediction < handle
             self.count = self.count + 1;
             
             % do prediction if size of list == 6
+            % We have en
             if self.count >= 6
                 
                 % calculate correct timestamp due to Nsec reset back to 0 when
@@ -123,8 +135,14 @@ classdef TrajPrediction < handle
                 end
                 
                 [x, y] = self.predictTraj(self.trackedPoints,self.time(1,1:5),self.zPlane);
-                y = y - 0.05;
-                % determine if xyz is within the bounding box
+                
+                %Offset the y values by a small amount to improve
+                %predictions. This is because our prediction model uses
+                %projectile motion that doesnt account for air resistance.
+                %Predictions tend to overshoot if we don't add this.
+                y = y - 0.08;     %Air drag offset
+                
+                % determine if xyz is within the inner bounding box
 %                 If within box, we move towards the prediction
                 if self.CheckConstraint(x,y) == true
                     transform = transl(x,y,self.zPlane) * self.endEffectorAngle;
@@ -132,8 +150,14 @@ classdef TrajPrediction < handle
                     goalJoints = self.Ikcon(transform);
                     disp(goalJoints);
                     % call roscontrol to move arm
-                    self.rosControl.Ur3_Move(goalJoints,0.4);
+                    self.rosControl.Ur3_Move(goalJoints,0.45);
+                    %Reset arm to centre
+                    pause(0.15);
+                    self.rosControl.Ur3_Move(self.qCentre,1.5);
+                
                 % Check if in outer bounding box
+                % If in outer bounding box, move towards the limits of the
+                % inner bounding box.
                 elseif x <= self.outerBox(1,1) && x >= self.outerBox(1,2)
                     if y <= self.outerBox(2,1) && y >= self.outerBox(2,2)
                         [goalX,goalY] = self.OuterBoxTracking(x,y);
@@ -142,12 +166,11 @@ classdef TrajPrediction < handle
                         goalJoints = self.Ikcon(transform);
                         disp(goalJoints);
                         % call roscontrol to move arm
-                        self.rosControl.Ur3_Move(goalJoints,0.4);
+                        self.rosControl.Ur3_Move(goalJoints,0.45);
+                        %Reset arm to centre
+                        pause(0.15);
+                        self.rosControl.Ur3_Move(self.qCentre,1.5);
                     end
-                %Go home if neither are activated    
-                else
-                    if self.ur3.model.getpos() != 
-                    reset = false;
                 end
 %                 %Tracking mode
 %                 else
@@ -164,12 +187,10 @@ classdef TrajPrediction < handle
 %                 % call roscontrol to move arm
 %                 self.rosControl.Ur3_Move(goalJoints,0.4);
 %                 end
-            elseif reset == false
-                ur3roscontrol.Ur3_Move(qCentre,5);
-                reset = true;
+%             elseif self.ur3.model.getpos() ~= self.qCentre
+%                 ur3roscontrol.Ur3_Move(qCentre,5);
+%                 reset = true;
             end
-            
-%             toc
         end
         
         
