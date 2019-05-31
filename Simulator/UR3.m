@@ -4,7 +4,7 @@ classdef UR3 < handle
         model;
         
         %> workspace
-        workspace = [-1 1 -1 1 0 1];   
+        workspace = [-2 2 -2 2 -0.05 3];
                
         %> If we have a tool model which will replace the final links model, combined ply file of the tool model and the final link models
         toolModelFilename = []; % Available are: 'DabPrintNozzleTool.ply';        
@@ -40,12 +40,12 @@ classdef UR3 < handle
             pause(0.001);
             name = ['UR_3_',datestr(now,'yyyymmddTHHMMSSFFF')];
 
-            L1 = Link('d',0.1519,'a',0,'alpha',pi/2,'offset',0,'qlim', [-2*pi,2*pi])
-            L2 = Link('d',0,'a',-0.24365,'alpha',0,'offset',0,'qlim', [-2*pi,2*pi])
-            L3 = Link('d',0,'a',-0.21325,'alpha', 0,'offset',0,'qlim', [-2*pi,2*pi])
-            L4 = Link('d',0.11235,'a',0,'alpha',pi/2,'offset',0,'qlim', [-2*pi,2*pi])
-            L5 = Link('d',0.08535,'a',0,'alpha',-pi/2,'offset',0,'qlim', [-2*pi,2*pi])
-            L6 = Link('d',0.0819,'a',0,'alpha',0,'offset',0,'qlim', [-2*pi,2*pi])
+            L1 = Link('d',0.1519,'a',0,'alpha',pi/2,'offset',0,'qlim', [-2*pi,2*pi]);
+            L2 = Link('d',0,'a',-0.24365,'alpha',0,'offset',0,'qlim', [-2*pi,2*pi]);
+            L3 = Link('d',0,'a',-0.21325,'alpha', 0,'offset',0,'qlim', [-2*pi,2*pi]);
+            L4 = Link('d',0.11235,'a',0,'alpha',pi/2,'offset',0,'qlim', [-2*pi,2*pi]);
+            L5 = Link('d',0.08535,'a',0,'alpha',-pi/2,'offset',0,'qlim', [-2*pi,2*pi]);
+            L6 = Link('d',0.0819,'a',0,'alpha',0,'offset',0,'qlim', [-2*pi,2*pi]);
 
             self.model = SerialLink([L1 L2 L3 L4 L5 L6],'name',name);
         end

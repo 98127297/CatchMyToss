@@ -71,8 +71,8 @@ for i = 1:size(message,1)
 
             [x, y, z] = predictTraj(tracked_points,t(1,1:5),-0.15);
             %if x < 3 && y < 3
-                x_f = x
-                y_f = y
+                x_f = x 
+                y_f = y - 0.03
                 z_f = z
                 
                 plot3(x_f, y_f, z_f, 'x');
@@ -96,11 +96,11 @@ end
 % plot(f,temp(:,2),temp(:,3));
 
 basketOffset = 0.08;
-boundaryLimits = [0.205,0.02;-0.3-basketOffset,-0.4068];
+boundaryLimits = [0.205,0.02;-0.3,-0.4068];
 
-top_right = [0.205, -0.3-basketOffset];
+top_right = [0.205, -0.3];
 top_left = [0.205, -0.4068];
-bottom_right = [0.02, -0.3-basketOffset];
+bottom_right = [0.02, -0.3];
 bottom_left = [0.02, -0.4068];
 
 rect = [top_right;top_left;bottom_left;bottom_right];
