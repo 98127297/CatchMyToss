@@ -1,5 +1,7 @@
 % Sheffield Dong, 98127927, 29/5/19
 % 41014 Robotics Assignment 2
+%% UR3 class for catching
+% Basic DH parameters are stored here
 classdef UR3Catching < handle
     properties
         %Model for the robot [SerialLink]
@@ -8,25 +10,18 @@ classdef UR3Catching < handle
         name;
         %Base of the robot (4x4 Homogeneous Transform Matrix)
         base;
-        %Tool of the robot
-        tool;
     end
         
     methods
-        function self = UR3Catching(tool)
+        %% Constructor
+        function self = UR3Catching(base)
             self.name = ['UR_3_',datestr(now,'yyyymmddTHHMMSSFFF')];
-            self.base = transl(0,0,0);
-            self.tool = tool;
+            self.base = base;
             GetUR3Robot(self);
         end
         
-        function moveUR3(self)
-            
-        end
-        
-                %% GetUR3Robot function
+        %% GetUR3Robot function
         % Creates the SerialLink for the UR3 provided the name and base
-        % inputs.
         function GetUR3Robot(self)
             pause(0.001);
             
@@ -41,7 +36,6 @@ classdef UR3Catching < handle
             %Assign our object model to the SerialLink of the UR3
             self.model = SerialLink([L1 L2 L3 L4 L5 L6],'name',self.name);
             self.model.base = self.base;
-            self.model.tool = self.tool;
         end
     end
 end
