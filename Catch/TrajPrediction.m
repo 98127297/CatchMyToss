@@ -71,7 +71,7 @@ classdef TrajPrediction < handle
             self.yMax = boundaryLimits(2,1);
             self.yMin = boundaryLimits(2,2);
             self.outerBox = [self.xMax + self.outerOffset, self.xMin - self.outerOffset ...
-                ; self.yMax + self.outerOffset, self.yMin];
+                ; self.yMax, self.yMin - self.outerOffset];
             self.endEffectorAngle = endEffectorAngle;
             self.ur3 = ur3;
             self.baseToCamera = baseToCamera;
@@ -90,8 +90,20 @@ classdef TrajPrediction < handle
             self.Ikcon(corner3);
             self.Ikcon(corner4);
             
+            %Initialisation of UR3 arm to starting position (centre of bounding box) 
             ur3roscontrol.Ur3_Move(qCentre,5);
-            
+            pause(0.15);
+%             %Initialisation finished 'Come at me bro'
+            centrePose = ur3.model.fkine(qCentre);
+            up = centrePose * trotx(-10,'deg');
+            down = centrePose * trotx(10,'deg');
+            qUp = self.Ikcon(up);
+            qDown = self.Ikcon(down);
+            ur3roscontrol.Ur3_Move(qUp,0.5)
+            pause(0.15);
+            ur3roscontrol.Ur3_Move(qDown,0.5);
+            pause(0.15);
+            ur3roscontrol.Ur3_Move(qCentre,0.5);
             
         end
         
@@ -124,7 +136,7 @@ classdef TrajPrediction < handle
                 end
                 
                 [x, y] = self.predictTraj(self.trackedPoints,self.time(1,1:5),self.zPlane);
-                y = y - 0.09;     %Drag offset
+                y = y - 0.08;     %Drag offset
                 % determine if xyz is within the bounding box
 %                 If within box, we move towards the prediction
                 if self.CheckConstraint(x,y) == true
@@ -133,7 +145,8 @@ classdef TrajPrediction < handle
                     goalJoints = self.Ikcon(transform);
                     disp(goalJoints);
                     % call roscontrol to move arm
-                    self.rosControl.Ur3_Move(goalJoints,0.42);
+                    self.rosControl.Ur3_Move(goalJoints,0.45);
+                    %Reset arm to centre
                     pause(0.15);
                     self.rosControl.Ur3_Move(self.qCentre,1.5);
                 % Check if in outer bounding box
@@ -145,7 +158,8 @@ classdef TrajPrediction < handle
                         goalJoints = self.Ikcon(transform);
                         disp(goalJoints);
                         % call roscontrol to move arm
-                        self.rosControl.Ur3_Move(goalJoints,0.42);
+                        self.rosControl.Ur3_Move(goalJoints,0.45);
+                        %Reset arm to centre
                         pause(0.15);
                         self.rosControl.Ur3_Move(self.qCentre,1.5);
                     end

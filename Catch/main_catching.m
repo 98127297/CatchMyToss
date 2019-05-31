@@ -5,7 +5,7 @@ clear all
 clc
 
 %Centre position of bounding box
-% qCentre = deg2rad([90 0 80 -70 90 0]);      %zPlane = -0.2, end effector = trotx(100,'deg')
+qOptimize = deg2rad([90 0 80 -70 90 0]);      %zPlane = -0.2, end effector = trotx(100,'deg')
 %Centre point (0.1124, -0.3465)
 
 %From base to camera, x = -0.2m, y = 0.06m, z = 0.24m, rotation along x axis = -70deg
@@ -16,14 +16,25 @@ baseToCamera = trotz(-90,'deg') * transl(-0.2,0.06,0.24) * trotz(-90,'deg') * tr
 
 %boundary limits
 boundaryLimits = [0.2124,0.0124;-0.3,-0.42];
+    
 
 ur3RosControl = UR3RosControl(false);
 ur3 = UR3Catching(transl(0,0,0));
 
 %Z Plane height & end effector angle
 zPlane = -0.1;
-centrePoint = transl(0.1124,-0.3465,zPlane);
+centrePoint = transl(0.1124,-0.37,zPlane);
 endEffectorAngle = trotx(100,'deg');
-qCentre = ur3.model.ikcon(centrePoint*endEffectorAngle);
-outerOffset = 0.2;
+qCentre = ur3.model.ikcon(centrePoint*endEffectorAngle, qOptimize);
+outerOffset = 0.1;
 traj = TrajPrediction(ur3,ur3RosControl,zPlane,baseToCamera,boundaryLimits,qCentre,endEffectorAngle, outerOffset);
+
+%Plot boundary
+% x = [boundaryLimits(1,1), boundaryLimits(1,2), boundaryLimits(1,1), boundaryLimits(1,2)];
+% y = [boundaryLimits(2,1), boundaryLimits(2,2), boundaryLimits(2,2), boundaryLimits(2,1)];
+% z = zPlane * ones(1,4);
+% ur3.model.plot(qCentre);
+% hold on
+% patch(x,y,z,'r');
+
+
