@@ -22,7 +22,7 @@ function varargout = mainGUI(varargin)
 
 % Edit the above text to modify the response to help mainGUI
 
-% Last Modified by GUIDE v2.5 31-May-2019 13:47:32
+% Last Modified by GUIDE v2.5 02-Jun-2019 14:05:03
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -65,6 +65,7 @@ handles.qCatch = deg2rad([90 0 80 -70 90 0]);
 % Initialise the UR3
 handles.thrower = UR3();
 handles.catcher = UR3();
+
 % Initial Plot of Thrower
 thrower = handles.thrower;
 thrower.model.base = transl(0,0,0.966);
@@ -78,14 +79,21 @@ catcher.model.base = transl(0,1.2,0.3);
 catcher.toolModelFilename = ['box.ply'];
 catcher.PlotAndColourRobot();
 catcher.model.animate(handles.qCatch);
-
 axis equal;
+
 % Import the Benches
 try delete(bench_h);end;
 try delete(smBench_h);end;
 bench_h = GetandMovePart('bench.ply',transl(0,-1.2,0.5)*trotz(-pi/2));
 smBench_h = GetandMovePart('smallbench.ply',transl(0,1.6,0.1)*trotz(pi/2));
 
+% Object's tranformation
+handles.object_tr = transl(1.5,1,0.25);
+handles.counter = 1;
+
+% Import Object
+try delete(handles.object_h);end;
+handles.object_h = GetandMovePart('object.ply',handles.object_tr);
 
 % Import Safety Curtain
 [handles.startP,handles.endP] = SafetyCurtain(hObject,handles);
@@ -184,10 +192,10 @@ tr = thrower.model.fkine(qStart_throwing);
 
 steps = 100;
 
-% Object's tranformation
-object_tr = transl(1.5,1,0.25);
-
 set(hObject, 'UserData', false);
+
+% Turn on the Status
+handles.indicator.BackgroundColor = [0 1 0];
 
 %% Main Simulation
 qMatrix_thrower = mtraj(@lspb,qStart_throwing,qEnd_throwing,steps);
@@ -222,33 +230,19 @@ qEnd_catching_t = transl(ball_stop_point(1,1), ball_stop_point(1,2)+0.05, tc(3,4
 qEnd_catching = catcher.model.ikcon(qEnd_catching_t, qStart_catching);
 qMatrix_catching = mtraj(@lspb,qStart_catching,qEnd_catching,steps);
 
-
 count = 1;
 release_ball = false;
 
-% Plot the object
-object_h = GetandMovePart('object.ply',object_tr);
-
-
 % Plotting the simulation
 for t = 1:2*steps
-    
-    % moviing object cube
-    new_tr = object_tr;
-    new_tr(1,4) = object_tr(1,4) - handles.object.Value;
-    try delete(object_h);end;
-    object_h = GetandMovePart('object.ply',new_tr);
-    if (new_tr - 0.25) <= 1 %safety curtain location
-        set(handles.start, 'UserData', true);
-    end
-    
+        
     % Testing if the emergency button or the safety curtain has been activated
     drawnow();        %give a chance for interrupts
     need_to_stop = get(handles.start, 'UserData');
     if ~isempty(need_to_stop) && need_to_stop;
+        handles.indicator.BackgroundColor = [1 0 0];
         try delete(ball_p);end;
         try delete(ball_h);end;
-        try delete(object_h);end;
         break;
     end   
    
@@ -278,7 +272,7 @@ for t = 1:2*steps
         
         % plot previous trajectory
         if mod(count,10) == 0
-            ball_p = plot3(ball(count,1),ball(count,2),ball(count,3), 'ro');
+            ball_p(count) = plot3(ball(count,1),ball(count,2),ball(count,3), 'ro');
             drawnow()
         end
         
@@ -364,3 +358,39 @@ function object_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 
+% Make it easier to use
+object_h = handles.object_h;
+object_tr = handles.object_tr;
+counter = handles.counter;
+% Moving object cube
+new_tr = object_tr;
+new_tr(1,4) = object_tr(1,4) - handles.object.Value;
+try delete(object_h);end;
+object_h(counter) = GetandMovePart('object.ply',new_tr);
+
+if (new_tr - 0.25) <= 1 %safety curtain location
+    set(handles.start, 'UserData', true);
+end
+
+%update handle
+handles.counter = counter + 1;
+handles.object_h = object_h(counter);
+guidata(hObject,handles);
+
+
+
+% --- Executes on button press in indicator.
+function indicator_Callback(hObject, eventdata, handles)
+% hObject    handle to indicator (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hint: get(hObject,'Value') returns toggle state of indicator
+
+
+% --- If Enable == 'on', executes on mouse press in 5 pixel border.
+% --- Otherwise, executes on mouse press in 5 pixel border or over indicator.
+function indicator_ButtonDownFcn(hObject, eventdata, handles)
+% hObject    handle to indicator (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
