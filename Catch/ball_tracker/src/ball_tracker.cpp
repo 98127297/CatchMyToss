@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <sstream>
 #include <string>
-//#include <stlib.h>
 #include <iostream>
 #include <ros/ros.h>
 #include <image_transport/image_transport.h>
@@ -12,9 +11,7 @@
 #include <geometry_msgs/PointStamped.h>
 #include <opencv2/videoio.hpp>
 #include <opencv2/video.hpp>
-//ZED camera
-//#include <sl_zed/Camera.hpp>
-//#include "background_segm.hpp"
+
 //SYNCRHONISER FOR DEPTH AND IMAGE
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
@@ -103,8 +100,6 @@ class ImageConverter
   cv::Mat erodeElement;
   //Gaussian kernel
   cv::Size gaussianKernel;
-  //Circles found by Hough Circles Transform
-  std::vector<cv::Vec3f> circles;
   //Background subtractor
   cv::Ptr<cv::BackgroundSubtractor> subtractor;
   //Mask for background subtractor
@@ -130,25 +125,9 @@ public:
         gaussianKernel(cv::Size(9,9)), subtractor(cv::createBackgroundSubtractorMOG2()), counter(0), flag(false)
   {
       ROS_INFO("Beginning Tracking");
-      //SYNCHRONISING [MAIN SUBSCIRBER]
-      //HD Topics, slower publishing but more resolution
-//      colorMsg.subscribe(nh_,"/kinect2/hd/image_color_rect",1);
-//      depthMsg.subscribe(nh_,"/kinect2/hd/image_depth_rect",1);
-      //Quarter HD topics, (Way faster)
-//      colorMsg.subscribe(nh_,"/kinect2/qhd/image_color_rect",1);
-//      depthMsg.subscribe(nh_,"/kinect2/qhd/image_depth_rect",1);
-
-      //ZED VGA topics
-//      colorMsg.subscribe(nh_,"/zed/zed_node/rgb/image_rect_color",1);   //Grab stereo rectified
-//      depthMsg.subscribe(nh_,"/zed/zed_node/depth/depth_registered",1);
+      
+      //Subscribing to ZED image topic
       image_sub_ = it_.subscribe("/zed/zed_node/stereo/image_rect_color",1,&ImageConverter::imageCallBack,this);
-
-      //Note, change MySyncPolicy(queueSize) to change how many messages it compares
-//      sync_.reset(new Sync(MySyncPolicy(QUEUE_SIZE), colorMsg));
-      //boost::bind uses generic numbers _1, _2, ..., _9 to represent arguments
-      //After specifying function, first argument must be an instance of the member function's class
-      //That's why 'this' is used because it references an instance of the class
-//      sync_->registerCallback(boost::bind(&ImageConverter::SyncCallBack, this, _1, _2));
 
       //PUBLISHERS
       //Publish the XYZ coordinates from camera + header
@@ -171,11 +150,11 @@ public:
 //          cv::destroyWindow(HOUGH_WINDOW);
   }
 
-  //Only perform this call back when synchronisation is successful
+  //Call back for ZED stereo images
   void imageCallBack(const sensor_msgs::ImageConstPtr& colorMsg)
   {
-//      ROS_INFO("Topics matched, ID: %u",counter);
-//      counter++;
+      ROS_INFO("Topics matched, ID: %u",counter);
+      counter++;
       //Grab our images from messages
       cv_bridge::CvImagePtr cv_color_ptr;
       try
@@ -193,10 +172,10 @@ public:
 //      cv::Mat leftImage = mask(cv::Range(0,mask.rows), cv::Range(0,mask.cols/2));
 //      cv::Mat rightImage = mask(cv::Range(0,mask.rows),cv::Range(mask.cols/2,mask.cols));
 
-      //Split images [Region of Interest]
+      //Split images [Region of Interest, middle of the image]
       cv::Mat leftImage = mask(cv::Range(0,mask.rows), cv::Range(cvRound(mask.cols/8),cvRound(mask.cols/2 - mask.cols/8)));
       cv::Mat rightImage = mask(cv::Range(0,mask.rows), cv::Range(cvRound(mask.cols/2 + mask.cols/8),cvRound(mask.cols - mask.cols/8)));
-      int xOffset = cvRound(mask.cols/8);
+      int xOffset = cvRound(mask.cols/8);  //Required for calculation of XYZ coordinates
 //      imshow("Left",leftImage);
 //      imshow("Right",rightImage);
 
@@ -226,19 +205,15 @@ public:
 //      imshow("Left", leftImageColor);
 //      imshow("Right", rightImageColor);
 
-//      std::cout << "Left Y:" << leftBall.y << " Right Y:" << rightBall.y << " Left X:" << leftBall.x << " Right X:" << rightBall.x << std::endl;
-
       //Disparity
       //Rows are the same, only look at columns
       int disparity = leftBall.x - rightBall.x;
-//      std::cout << disparity << std::endl;
 
       //Depth Formula [Left Camera]
       double depth = (FOCAL_LENGTH_X*baseline)/disparity;
-//      std::cout << depth << std::endl;
 
       //Publish depth
-      //Only publish if flag = true [depth reading correctly, contour seen]
+      //Only publish if flag = true [depth reading correct, contour seen]
       if (flag == true){
           cv::Point3d XYZ = findXYZ(leftBall,depth);
           ballMsg.point.x = XYZ.x;
@@ -248,13 +223,7 @@ public:
           ball_xyz_.publish(ballMsg);
 
       }
-//      else{
-//          ballMsg.point.x = 0;
-//          ballMsg.point.y = 0;
-//          ballMsg.point.z = 0;
-//          ballMsg.header = cv_color_ptr->header;
-//          ball_xyz_.publish(ballMsg);
-//      }
+
       //DEBUG
 //      cv::Mat imageCircle = cv_color_ptr->image;
 ////      Ball centre point
@@ -288,10 +257,6 @@ public:
 //      subtractor->apply(filteredHsv, mask);
       mask = filteredHsv;
 
-      //Erode and dilate (remove background noise) [KINECT 2]
-//      cv::erode(mask,mask,erodeElement,cv::Point(-1,-1),2);
-//      cv::dilate(mask,mask,dilateElement,cv::Point(-1,-1),8);
-
 //      //Erode and dilate (remove background noise) [ZED]
       cv::erode(mask,mask,erodeElement,cv::Point(-1,-1),6);
       cv::dilate(mask,mask,dilateElement,cv::Point(-1,-1),6);
@@ -300,6 +265,7 @@ public:
       cv::GaussianBlur(mask,mask,gaussianKernel,9,9);
   }
 
+ //Find ball using contours and centre of mass [Full image]
   cv::Point findBall(cv::Mat filteredImage){
       cv::Point ball(0,0);
       //Centre of Mass using Moments (https://docs.opencv.org/2.4/doc/tutorials/imgproc/shapedescriptors/moments/moments.html)
@@ -341,19 +307,14 @@ public:
       return ball;
   }
 
-  //Find ball using HSV filter for colour
-  //Background subtraction and erode + dilate for noise reduction
-  //Hough circle detector for finding ball
-
+  //Find ball using using contours and centre of mass [Cropped images]
   cv::Point findBallCropped(cv::Mat filteredImage,int xOffset){
       cv::Point ball(0,0);
       //Centre of Mass using Moments (https://docs.opencv.org/2.4/doc/tutorials/imgproc/shapedescriptors/moments/moments.html)
       std::vector<std::vector<cv::Point> > contours;
       //Find Contours
       cv::findContours(filteredImage, contours, CV_RETR_EXTERNAL,CV_CHAIN_APPROX_NONE, cv::Point(0,0));
-//      cv::Mat contourTest = cv::Mat::zeros(mask.rows,mask.cols,CV_8UC3);
-
-//      std::cout << contours.size() << std::endl;
+   
       //Only do this if contours are available
       if (contours.size() > 0){
           flag = true;
@@ -386,99 +347,12 @@ public:
       return ball;
   }
 
-  //Find all points within circle of Hough Circle transform
-  //https://stackoverflow.com/questions/20378050/access-pixel-values-inside-the-detected-object-c
-  std::vector<cv::Point> allCirclePoints(cv::Point ball, int image_height, int image_width){
-      int radius = 15;
-      std::vector<cv::Point> ballPoints;
-      cv::Mat mask = cv::Mat::zeros(image_height,image_width, CV_8U);
-//      std::cout << cvRound(radius/2) << std::endl;
-      cv::circle(mask,ball,cvRound(radius),cv::Scalar(255),-1);
-//      imshow("Test",mask);
-//      cv::waitKey(3);
-      for(unsigned int y=0; y<image_height; ++y)
-        for(unsigned int x=0; x<image_width; ++x)
-          if(mask.at<unsigned char>(y,x) > 0)
-          {
-            cv::Point ballPoint(x,y);
-            ballPoints.push_back(ballPoint);
-          }
-      return ballPoints;
-  }
-
-  //Find all points inside a contour
-  std::vector<cv::Point> allContourPoints(std::vector<std::vector<cv::Point> > contours,int image_height, int image_width){
-      std::vector<cv::Point> ballPoints;
-      cv::Mat mask = cv::Mat::zeros(image_height,image_width, CV_8U);
-      cv::drawContours(mask, contours, -1, cv::Scalar(255),-1);
-//      cv::imshow("test", mask);
-      for(unsigned int y=0; y<image_height; ++y)
-        for(unsigned int x=0; x<image_width; ++x)
-          if(mask.at<unsigned char>(y,x) > 0)
-          {
-            cv::Point ballPoint(x,y);
-            ballPoints.push_back(ballPoint);
-          }
-      return ballPoints;
-  }
-
-  //Finds the smallest depth value using a vector of image points
-  cv::Point3d findXYZAround(std::vector<cv::Point> ballPoints, const cv_bridge::CvImagePtr& cv_ptr){
-      unsigned short currentDepth;
-      unsigned short depth;
-      int currentU;
-      int currentV;
-      int u;
-      int v;
-      cv::Point ball;
-      bool zeroFlag = false;
-      //Kinect
-      for (int i = 0; i < ballPoints.size(); i++){
-          ball = ballPoints.at(i);
-          currentU = ball.x;
-          currentV = ball.y;
-          currentDepth = cv_ptr->image.at<unsigned short>(ball);
-          //Need to find depth value that isn't 0 to fill depth with
-          if (currentDepth > 0 && zeroFlag == false){
-              zeroFlag = true;
-              depth = currentDepth;
-          }
-          //Skip until you find a value that isn't zero depth
-          else if (zeroFlag == false){
-              continue;
-          }
-          if (currentDepth < depth && currentDepth != 0){
-              depth = currentDepth;
-              u = currentU;
-              v = currentV;
-          }
-      }
-      //Just in case we exit loop with no depth
-      if (zeroFlag == false){
-          depth = 0;
-      }
-      //Depth is a crazy value, don't consider
-      if (depth > 2300){
-          std::cout << depth << std::endl;
-          depth = 0;
-      }
-      //Using intrinsic parameters of camera we now convert (u,v) and depth into
-      //(X,Y,Z) from camera.
-      double X = depth*(u - PRINCIPAL_POINT_X) / FOCAL_LENGTH_X;
-      double Y = depth*(v - PRINCIPAL_POINT_Y) / FOCAL_LENGTH_Y;
-
-      //Vector of XYZ values
-      cv::Point3d XYZ(X,Y,depth);
-      return XYZ;
-
-  }
-
   //Finding the XYZ coordinates of ball based on intrinsic parameters
   cv::Point3d findXYZ(cv::Point ball, double depth){
       //Pixel coordinates where ball was seen
       /*
        IMAGE FRAME
-       ------------> u axis (columns)
+       0/0-----------> u axis (columns)
        |
        |
        |
@@ -489,77 +363,12 @@ public:
        */
       int u = ball.x;
       int v = ball.y;
-      //      std::cout << depth << std::endl;
+   
       //(X,Y,Z) from camera.
       double X = depth*(u - PRINCIPAL_POINT_X) / FOCAL_LENGTH_X;
       double Y = depth*(v - PRINCIPAL_POINT_Y) / FOCAL_LENGTH_Y;
 
-      //Vector of XYZ values
-      cv::Point3d XYZ(X,Y,depth);
-      return XYZ;
-
-  }
-  //Finding the XYZ coordinates of ball based on ZED intrinsic parameters
-  //NOTE: ZED uses message->data instead of message->image
-  cv::Point3d findXYZZed(cv::Point ball, const sensor_msgs::Image::ConstPtr& msg){
-      //Pixel coordinates where ball was seen
-      /*
-       IMAGE FRAME
-       ------------> u axis (columns)
-       |
-       |
-       |
-       |
-       |
-       v
-         v axis (rows)
-       */
-
-
-      //      std::cout << depth << std::endl;
-      //Depth [ZED VGA]
-//      float *depths = (float*)(&msg->data[0]);
-//      int u;
-//      int v;
-//      int currentU;
-//      int currentV;
-//      float currentDepth;
-//      float depth;
-//      cv::Point ball;
-//      int ballPoint;
-//      //Find the smallest depth in the vector
-//      for (int i = 0; i < ballPoints.size(); i++){
-//          ball = ballPoints.at(i);
-//          currentU = ball.x;
-//          currentV = ball.y;
-//          //Find index of data array that corresponds to the depth of the ball centre pixel
-//          ballPoint = currentU + msg->width * currentV;
-//          currentDepth = depths[ballPoint];
-//          if (i == 0){
-//              //Load up the first depth value to compare
-//               depth = currentDepth;
-//          }
-//          if (depth > currentDepth){
-//              u = currentU;
-//              v = currentV;
-//              depth = currentDepth;
-//          }
-//      }
-//      //No ball points found, we assume 0 values
-//      if (ballPoints.size() == 0){
-//          depth = 0;
-//      }
-      float *depths = (float*)(&msg->data[0]);
-      int u = ball.x;
-      int v = ball.y;
-      int centre = u + msg->width * v;
-      float depth = depths[centre];
-      //Using intrinsic parameters of camera we now convert (u,v) and depth into
-      //(X,Y,Z) from camera.
-      double X = depth*(u - PRINCIPAL_POINT_X) / FOCAL_LENGTH_X;
-      double Y = depth*(v - PRINCIPAL_POINT_Y) / FOCAL_LENGTH_Y;
-
-      //Vector of XYZ values
+      //Point of XYZ values
       cv::Point3d XYZ(X,Y,depth);
       return XYZ;
   }
